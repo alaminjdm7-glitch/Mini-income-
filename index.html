@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Earning App – Complete</title>  
-
+<title>Earning App – Final Version</title>  
 <!-- AD NETWORK -->
 <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>  
 
@@ -135,14 +134,18 @@ input, select {
 const tg = window.Telegram?.WebApp;
 tg?.expand();
 
-// BOT CONFIG
 const BOT_TOKEN = "8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
 const ADMIN_ID = "8188773875";
-const AD_REWARD = 10;
+const AD_REWARD = 10; // ১০ টাকা
 const DAILY_AD_LIMIT = 50;
 const MIN_WITHDRAW = 120;
 
-let user = tg?.initDataUnsafe?.user || { first_name:"Guest", id:Date.now() };
+let user = { first_name: "Guest", id: "Unknown" };
+
+// Telegram WebApp থেকে আসল ইউজার নাম ও আইডি নেওয়া
+if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    user = tg.initDataUnsafe.user;
+}
 
 let balance = JSON.parse(localStorage.getItem("balance_"+user.id) || "0");
 let lastDate = localStorage.getItem("lastDate_"+user.id) || "";
@@ -209,6 +212,15 @@ window.copyRef = ()=>{
 document.getElementById("start-earning").onclick = ()=>{ document.querySelector('[data-page="earn-page"]').click(); };
 document.getElementById("withdraw-nav-btn").onclick = ()=>{ document.querySelector('[data-page="withdraw-page"]').click(); };
 
+// SEND TO ADMIN FUNCTION
+function sendToAdmin(text){
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method:"POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: ADMIN_ID, text: text, parse_mode: "HTML" })
+    });
+}
+
 // WITHDRAW FORM
 document.getElementById("withdraw-form").onsubmit = (e)=>{
     e.preventDefault();
@@ -222,36 +234,33 @@ document.getElementById("withdraw-form").onsubmit = (e)=>{
     balance -= amount;
     localStorage.setItem("balance_"+user.id, balance);
 
-    // Withdraw record
+    // Save withdraw history
     let now = new Date();
     let record = {
         date: now.toLocaleDateString(),
         time: now.toLocaleTimeString(),
         amount: amount,
         method: method,
-        number: number,
-        user_name: user.first_name,
-        user_id: user.id
+        number: number
     };
     withdrawHistory.push(record);
     localStorage.setItem("withdrawHistory_"+user.id, JSON.stringify(withdrawHistory));
 
     updateUI();
 
-    // Send to admin (name + id)
+    // Send to admin with actual name & id
     let msg = `📢 <b>Withdraw Request</b>
+
 👤 <b>Name:</b> ${user.first_name}
 🆔 <b>ID:</b> ${user.id}
+
 💵 <b>Amount:</b> ${amount} BDT
 💳 <b>Method:</b> ${method}
 📱 <b>Number:</b> ${number}
-💰 <b>Balance Now:</b> ${balance.toFixed(2)} BDT`;
 
-    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method:"POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: ADMIN_ID, text: msg, parse_mode:"HTML" })
-    });
+📊 <b>Ads Watched:</b> ${adsWatched}
+💰 <b>Balance Now:</b> ${balance.toFixed(2)} BDT`;
+    sendToAdmin(msg);
 
     tg?.showAlert("Withdraw request Sent!");
     document.getElementById("withdraw-form").reset();
@@ -270,6 +279,5 @@ function renderWithdrawHistory(){
     });
 }
 </script>
-
 </body>
 </html>
