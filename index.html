@@ -1,242 +1,366 @@
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Earning App – Complete</title>
-
-    <!-- YOUR AD NETWORK SCRIPT -->
-    <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>
-
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0f0f0f;
-            color: white;
-        }
-
-        .page {
-            display: none;
-            padding: 20px;
-        }
-        .page.active {
-            display: block;
-        }
-
-        .nav {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: #111;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            border-top: 1px solid #333;
-        }
-
-        .nav-item {
-            color: #aaa;
-            font-size: 15px;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .nav-item.active {
-            color: #00ff99;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            font-size: 17px;
-            border: none;
-            border-radius: 8px;
-            background: #ff3c3c;
-            color: white;
-            margin-top: 18px;
-        }
-
-        input, select {
-            width: 100%;
-            padding: 10px;
-            font-size: 16px;
-            background: #1c1c1c;
-            border: 1px solid #333;
-            color: white;
-            border-radius: 6px;
-            margin-top: 12px;
-        }
-    </style>
-</head>
-
-<body>
-
-    <!-- HOME PAGE -->
-    <div class="page active" id="home-page">
-        <h2>Welcome to Earning App</h2>
-        <p>Earn Money by Watching Ads</p>
-        <h1>Balance: <span id="balance">0.00</span> BDT</h1>
-
-        <button id="start-earning">Start Earning Now</button>
-        <button id="withdraw-btn" style="background:#00cc66;">Withdraw</button>
-    </div>
-
-    <!-- EARN PAGE -->
-    <div class="page" id="earn-page">
-        <h2>Earn by Watching Ads</h2>
-        <p>Daily Ad Limit: <span id="daily-limit">20</span></p>
-        <p>Today Watched: <span id="today-ads">0</span></p>
-
-        <button id="watch-ad">Watch Ad & Earn</button>
-    </div>
-
-    <!-- WITHDRAW PAGE -->
-    <div class="page" id="withdraw-page">
-        <h2>Withdraw Money</h2>
-
-        <form id="withdraw-form">
-            <label>Payment Method</label>
-            <select id="withdraw-method">
-                <option value="bkash">bKash</option>
-                <option value="nagad">Nagad</option>
-                <option value="rocket">Rocket</option>
-            </select>
-
-            <label>Account Number</label>
-            <input id="account-number" type="number" placeholder="Enter Number" />
-
-            <label>Amount</label>
-            <input id="withdraw-amount" type="number" placeholder="Minimum 100" />
-
-            <button type="submit" style="background:#00cc66;">Submit Withdraw</button>
-        </form>
-    </div>
-
-    <!-- PROFILE PAGE -->
-    <div class="page" id="profile-page">
-        <h2>Profile</h2>
-        <p>Name: <span id="profile-name">User</span></p>
-        <p>Balance: <span id="profile-balance">0.00</span> BDT</p>
-        <p>Ads Watched: <span id="profile-ads-watched">0</span></p>
-        <p>Referrals: <span id="profile-referrals">0</span></p>
-    </div>
-
-    <!-- Navigation -->
-    <div class="nav">
-        <div class="nav-item active" data-page="home-page">Home</div>
-        <div class="nav-item" data-page="earn-page">Earn</div>
-        <div class="nav-item" data-page="withdraw-page">Withdraw</div>
-        <div class="nav-item" data-page="profile-page">Profile</div>
-    </div>
-
-
-<script>
-    const tg = window.Telegram?.WebApp;
-
-    // Constants
-    const AD_REWARD = 0.20;
-    const DAILY_AD_LIMIT = 20;
-    const MIN_WITHDRAW = 1;
-
-    // Local Storage Loader
-    function load(key, defaultValue) {
-        return localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : defaultValue;
-    }
-
-    function save(key, value) {
-        localStorage.setItem(key, JSON.stringify(value));
-    }
-
-    let balance = load("balance", 0);
-    let adsWatched = load("adsWatched", 0);
-    let referrals = load("referrals", 0);
-
-    // UI Update
-    function updateUI() {
-        document.getElementById("balance").textContent = balance.toFixed(2);
-        document.getElementById("today-ads").textContent = adsWatched;
-        document.getElementById("daily-limit").textContent = DAILY_AD_LIMIT;
-        document.getElementById("profile-name").textContent = tg?.initDataUnsafe?.user?.first_name || "User";
-        document.getElementById("profile-balance").textContent = balance.toFixed(2);
-        document.getElementById("profile-ads-watched").textContent = adsWatched;
-        document.getElementById("profile-referrals").textContent = referrals;
-    }
-
-    updateUI();
-
-    // Navigation
-    document.querySelectorAll(".nav-item").forEach(btn => {
-        btn.addEventListener("click", () => {
-            document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
-            btn.classList.add("active");
-
-            let page = btn.getAttribute("data-page");
-
-            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-            document.getElementById(page).classList.add("active");
-        });
-    });
-
-    // WATCH AD BUTTON WITH YOUR REWARDED AD
-    document.getElementById("watch-ad").addEventListener("click", () => {
-
-        if (adsWatched >= DAILY_AD_LIMIT) {
-            tg?.showAlert("আজকের লিমিট পূর্ণ হয়েছে!");
-            return;
-        }
-
-        // Show Reward Ad
-        show_10314131('pop')
-            .then(() => {
-                // USER WATCHED THE AD SUCCESSFULLY → GIVE REWARD
-                adsWatched++;
-                balance += AD_REWARD;
-
-                save("adsWatched", adsWatched);
-                save("balance", balance);
-                updateUI();
-            })
-            .catch(() => {
-                // ERROR PLAYING AD → NO REWARD
-                tg?.showAlert("Ad failed to load!");
-            });
-    });
-
-    // Start Earning → Earn Page
-    document.getElementById("start-earning").addEventListener("click", () => {
-        document.querySelector('[data-page="earn-page"]').click();
-    });
-
-    // Withdraw → Withdraw Page
-    document.getElementById("withdraw-btn").addEventListener("click", () => {
-        document.querySelector('[data-page="withdraw-page"]').click();
-    });
-
-    // Withdraw Form
-    document.getElementById("withdraw-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-
-        let amount = Number(document.getElementById("withdraw-amount").value);
-
-        if (amount < MIN_WITHDRAW) {
-            tg?.showAlert("Minimum withdraw is 100 BDT!");
-            return;
-        }
-        if (amount > balance) {
-            tg?.showAlert("Balance is not enough!");
-            return;
-        }
-
-        balance -= amount;
-        save("balance", balance);
-
-        updateUI();
-
-        tg?.showAlert("Withdraw Request Submitted!");
-        document.getElementById("withdraw-form").reset();
-    });
-</script>
-
-</body>
-</html>
+<!DOCTYPE html>  
+<html lang="bn">  
+<head>  
+    <meta charset="UTF-8" />  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />  
+    <title>Earning App – Updated</title>  
+  
+    <!-- YOUR AD NETWORK SCRIPT -->  
+    <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>  
+  
+    <style>  
+        body {  
+            margin: 0;  
+            font-family: Arial, sans-serif;  
+            background: #0f0f0f;  
+            color: white;  
+            padding-bottom: 70px; /* Space for nav */  
+        }  
+  
+        .page {  
+            display: none;  
+            padding: 20px;  
+            animation: fadeIn 0.3s;  
+        }  
+        @keyframes fadeIn {  
+            from { opacity: 0; }  
+            to { opacity: 1; }  
+        }  
+        .page.active {  
+            display: block;  
+        }  
+  
+        .nav {  
+            position: fixed;  
+            bottom: 0;  
+            width: 100%;  
+            background: #111;  
+            display: flex;  
+            justify-content: space-around;  
+            padding: 10px 0;  
+            border-top: 1px solid #333;  
+            z-index: 1000;  
+        }  
+  
+        .nav-item {  
+            color: #aaa;  
+            font-size: 15px;  
+            text-align: center;  
+            cursor: pointer;  
+            flex: 1;  
+        }  
+  
+        .nav-item.active {  
+            color: #00ff99;  
+            font-weight: bold;  
+        }  
+  
+        .card {  
+            background: #1c1c1c;  
+            padding: 15px;  
+            border-radius: 10px;  
+            margin-bottom: 15px;  
+            border: 1px solid #333;  
+        }  
+  
+        h1, h2 { margin-top: 0; }  
+          
+        button {  
+            width: 100%;  
+            padding: 12px;  
+            font-size: 16px;  
+            border: none;  
+            border-radius: 8px;  
+            background: #ff3c3c;  
+            color: white;  
+            margin-top: 10px;  
+            cursor: pointer;  
+            transition: 0.2s;  
+        }  
+        button:active { transform: scale(0.98); }  
+  
+        input, select {  
+            width: 100%;  
+            padding: 10px;  
+            font-size: 16px;  
+            background: #000;  
+            border: 1px solid #444;  
+            color: white;  
+            border-radius: 6px;  
+            margin-top: 8px;  
+            box-sizing: border-box;  
+        }  
+  
+        .ref-box {  
+            display: flex;  
+            gap: 5px;  
+            margin-top: 10px;  
+        }  
+        .ref-box input {  
+            margin-top: 0;  
+        }  
+        .ref-box button {  
+            width: 80px;  
+            margin-top: 0;  
+            background: #007bff;  
+        }  
+    </style>  
+</head>  
+  
+<body>  
+  
+    <!-- HOME PAGE -->  
+    <div class="page active" id="home-page">  
+        <div class="card">  
+            <h2>Welcome, <span id="user-name">User</span>!</h2>  
+            <p>Earn 20 BDT per Ad View</p>  
+        </div>  
+  
+        <div class="card" style="text-align: center;">  
+            <p>Total Balance</p>  
+            <h1 style="color: #00ff99;"><span id="balance">0.00</span> BDT</h1>  
+        </div>  
+  
+        <button id="start-earning">Start Earning Now</button>  
+        <button id="withdraw-nav-btn" style="background:#00cc66;">Withdraw Money</button>  
+    </div>  
+  
+    <!-- EARN PAGE -->  
+    <div class="page" id="earn-page">  
+        <h2>Task Zone</h2>  
+          
+        <div class="card">  
+            <h3>Watch Ad</h3>  
+            <p>Reward: <b>20.00 BDT</b></p>  
+            <p>Daily Limit: <span id="daily-limit">50</span> Ads</p>  
+            <p>Watched Today: <span id="today-ads">0</span></p>  
+              
+            <button id="watch-ad">Watch Ad & Earn</button>  
+        </div>  
+    </div>  
+  
+    <!-- WITHDRAW PAGE -->  
+    <div class="page" id="withdraw-page">  
+        <h2>Withdraw Funds</h2>  
+  
+        <div class="card">  
+            <form id="withdraw-form">  
+                <label>Select Method</label>  
+                <select id="withdraw-method">  
+                    <option value="bkash">bKash</option>  
+                    <option value="nagad">Nagad</option>  
+                    <option value="rocket">Rocket</option>  
+                </select>  
+  
+                <label style="display:block; margin-top:10px">Mobile Number</label>  
+                <input id="account-number" type="number" placeholder="017xxxxxxxx" required />  
+  
+                <label style="display:block; margin-top:10px">Amount (Min 100)</label>  
+                <input id="withdraw-amount" type="number" placeholder="Amount" required />  
+  
+                <button type="submit" style="background:#00cc66;">Confirm Withdraw</button>  
+            </form>  
+        </div>  
+    </div>  
+  
+    <!-- PROFILE PAGE -->  
+    <div class="page" id="profile-page">  
+        <h2>My Profile</h2>  
+          
+        <div class="card">  
+            <p><b>Name:</b> <span id="profile-name">User</span></p>  
+            <p><b>User ID:</b> <span id="user-id">Loading...</span></p>  
+            <p><b>Total Balance:</b> <span id="profile-balance">0.00</span> BDT</p>  
+        </div>  
+  
+        <div class="card">  
+            <h3>Referral Program</h3>  
+            <p>Share this link to invite friends!</p>  
+            <div class="ref-box">  
+                <input type="text" id="ref-link" readonly value="Loading..." />  
+                <button onclick="copyRef()">Copy</button>  
+            </div>  
+            <p style="font-size: 12px; color: #888; margin-top: 5px;">*Referral bonus will be added when friend joins.</p>  
+        </div>  
+  
+        <div class="card">  
+            <p>Ads Watched: <span id="profile-ads-watched">0</span></p>  
+            <p>Total Referrals: <span id="profile-referrals">0</span></p>  
+        </div>  
+    </div>  
+  
+    <!-- Navigation -->  
+    <div class="nav">  
+        <div class="nav-item active" data-page="home-page">Home</div>  
+        <div class="nav-item" data-page="earn-page">Earn</div>  
+        <div class="nav-item" data-page="withdraw-page">Cashout</div>  
+        <div class="nav-item" data-page="profile-page">Profile</div>  
+    </div>  
+  
+  
+<script>  
+    const tg = window.Telegram?.WebApp;  
+    tg?.expand(); // Expand to full screen  
+  
+    // --- SETTINGS (পরিবর্তন করুন) ---  
+    const AD_REWARD = 20.00;        // প্রতি এডে ২০ টাকা  
+    const DAILY_AD_LIMIT = 50;      // দৈনিক ৫০ টি এড  
+    const MIN_WITHDRAW = 100;       // মিনিমাম উইথড্র  
+    const BOT_USERNAME = "YourBotName_bot"; // আপনার টেলিগ্রাম বটের ইউজারনেম এখানে দিন (যেমন: EarnMoney_bot)  
+  
+    // Local Storage Helpers  
+    function load(key, defaultValue) {  
+        let val = localStorage.getItem(key);  
+        return val ? JSON.parse(val) : defaultValue;  
+    }  
+    function save(key, value) {  
+        localStorage.setItem(key, JSON.stringify(value));  
+    }  
+  
+    // Get User Data  
+    let user = tg?.initDataUnsafe?.user || { first_name: "Guest", id: 123456 };  
+      
+    // State Variables  
+    let balance = load("balance_" + user.id, 0);  
+    // Reset daily limit logic check (Simple implementation)  
+    let lastDate = load("lastDate_" + user.id, "");  
+    let todayDate = new Date().toDateString();  
+    let adsWatched = load("adsWatched_" + user.id, 0);  
+  
+    if (lastDate !== todayDate) {  
+        adsWatched = 0; // Reset ads for new day  
+        save("lastDate_" + user.id, todayDate);  
+        save("adsWatched_" + user.id, adsWatched);  
+    }  
+      
+    let referrals = load("referrals_" + user.id, 0);  
+  
+    // Generate Referral Link  
+    const refLink = `https://t.me/${BOT_USERNAME}?start=${user.id}`;  
+  
+    // UI Update Function  
+    function updateUI() {  
+        // Home  
+        document.getElementById("balance").textContent = balance.toFixed(2);  
+        document.getElementById("user-name").textContent = user.first_name;  
+          
+        // Earn  
+        document.getElementById("today-ads").textContent = adsWatched;  
+        document.getElementById("daily-limit").textContent = DAILY_AD_LIMIT;  
+  
+        // Profile  
+        document.getElementById("profile-name").textContent = user.first_name;  
+        document.getElementById("user-id").textContent = user.id;  
+        document.getElementById("profile-balance").textContent = balance.toFixed(2);  
+        document.getElementById("profile-ads-watched").textContent = adsWatched;  
+        document.getElementById("profile-referrals").textContent = referrals;  
+        document.getElementById("ref-link").value = refLink;  
+    }  
+  
+    updateUI();  
+  
+    // Navigation Logic  
+    document.querySelectorAll(".nav-item").forEach(btn => {  
+        btn.addEventListener("click", () => {  
+            document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));  
+            btn.classList.add("active");  
+  
+            let page = btn.getAttribute("data-page");  
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));  
+            document.getElementById(page).classList.add("active");  
+        });  
+    });  
+  
+    // WATCH AD FUNCTION  
+    document.getElementById("watch-ad").addEventListener("click", () => {  
+        if (adsWatched >= DAILY_AD_LIMIT) {  
+            if(tg) tg.showAlert("আজকের লিমিট (৫০ টি) শেষ! আগামীকাল আবার চেষ্টা করুন।");  
+            else alert("Daily limit reached!");  
+            return;  
+        }  
+  
+        // Show Loading/Ad Simulation  
+        if(typeof show_10314131 === 'function') {  
+            show_10314131('pop')  
+                .then(() => {  
+                    // Success  
+                    completeTask();  
+                })  
+                .catch(() => {  
+                    // Fail fallback (Optional: remove this if you want strict ad check)  
+                    tg?.showAlert("Ad failed to load. Try again.");  
+                });  
+        } else {  
+            // Testing purpose (If script not loaded)  
+            console.log("Ad script missing, simulating success...");  
+            setTimeout(completeTask, 2000);   
+        }  
+    });  
+  
+    function completeTask() {  
+        adsWatched++;  
+        balance += AD_REWARD;  
+  
+        save("adsWatched_" + user.id, adsWatched);  
+        save("balance_" + user.id, balance);  
+        updateUI();  
+          
+        if(tg) tg.showAlert(`অভিনন্দন! আপনি ${AD_REWARD} টাকা আয় করেছেন।`);  
+    }  
+  
+    // Copy Referral Link  
+    window.copyRef = function() {  
+        const copyText = document.getElementById("ref-link");  
+        copyText.select();  
+        copyText.setSelectionRange(0, 99999);   
+        navigator.clipboard.writeText(copyText.value).then(() => {  
+            if(tg) tg.showAlert("Link Copied!");  
+            else alert("Copied!");  
+        });  
+    }  
+  
+    // Buttons Redirect  
+    document.getElementById("start-earning").addEventListener("click", () => {  
+        document.querySelector('[data-page="earn-page"]').click();  
+    });  
+    document.getElementById("withdraw-nav-btn").addEventListener("click", () => {  
+        document.querySelector('[data-page="withdraw-page"]').click();  
+    });  
+  
+    // Withdraw Logic  
+    document.getElementById("withdraw-form").addEventListener("submit", (e) => {  
+        e.preventDefault();  
+        let amount = Number(document.getElementById("withdraw-amount").value);  
+        let number = document.getElementById("account-number").value;  
+        let method = document.getElementById("withdraw-method").value;  
+  
+        if (!number) {  
+            tg?.showAlert("Please enter account number.");  
+            return;  
+        }  
+        if (amount < MIN_WITHDRAW) {  
+            tg?.showAlert(`Minimum withdraw is ${MIN_WITHDRAW} BDT!`);  
+            return;  
+        }  
+        if (amount > balance) {  
+            tg?.showAlert("Insufficient Balance!");  
+            return;  
+        }  
+  
+        // Process Withdraw  
+        balance -= amount;  
+        save("balance_" + user.id, balance);  
+        updateUI();  
+  
+        // Send data to bot (Optional integration)  
+        let msg = `Withdraw Request:\nMethod: ${method}\nNumber: ${number}\nAmount: ${amount} BDT`;  
+        if(tg) tg.sendData(msg); // This sends data back to the bot  
+          
+        tg?.showAlert("Withdraw request submitted successfully!");  
+        document.getElementById("withdraw-form").reset();  
+    });  
+  
+</script>  
+  
+</body>  
+    </html>
