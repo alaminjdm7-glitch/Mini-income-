@@ -1,202 +1,221 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Earning App – Withdraw</title>
-<script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>
+<title>Quick Earn</title>
+
+<!-- AD NETWORK -->
+<script src="//libtl.com/sdk.js" data-zone="10314131" data-sdk="show_10314131"></script>
+
 <style>
-body { margin:0; font-family:Arial,sans-serif; background:#ffffff; color:#000; padding-bottom:70px; }
-.page{display:none; padding:20px;}
-.page.active{display:block;}
-.nav{position:fixed; bottom:0;width:100%;background:#f1f1f1; display:flex; justify-content:space-around; padding:10px 0; border-top:1px solid #ccc;}
-.nav-item{flex:1; text-align:center; cursor:pointer; color:#555;}
-.nav-item.active{color:#00cc66; font-weight:bold;}
-.card{background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px; border:1px solid #ccc;}
-button{width:100%; padding:12px; border:none; border-radius:8px; background:#ff3c3c; color:white; margin-top:10px; cursor:pointer;}
-button:active{transform:scale(0.98);}
-input, select{width:100%; padding:10px; font-size:16px; border:1px solid #ccc; border-radius:6px; margin-top:8px;}
-.withdraw-history{max-height:200px; overflow-y:auto; margin-top:10px; border-top:1px solid #ccc; padding-top:10px;}
-.withdraw-item{margin-bottom:8px; padding-bottom:5px; border-bottom:1px solid #ddd; font-size:14px;}
+body {
+    background: #f2f2f7;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+.container {
+    max-width: 420px;
+    margin: auto;
+    padding: 20px;
+}
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+}
+button {
+    width: 100%;
+    padding: 12px;
+    background: #4E73DF;
+    border: none;
+    color: white;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+}
+.nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 0;
+    border-top: 1px solid #ccc;
+}
+.nav div {
+    font-size: 18px;
+    font-weight: bold;
+}
+input, select { width: 100%; padding: 10px; margin-top: 10px; font-size: 16px; border-radius: 6px; border:1px solid #ccc; }
+.withdraw-history { max-height:200px; overflow-y:auto; margin-top:10px; }
 </style>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+const tg = window.Telegram.WebApp;
+tg.expand();
+
+const BOT_TOKEN = "8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
+const ADMIN_ID = "8188773875";
+
+// Telegram user info
+let user = tg?.initDataUnsafe?.user || {};
+let USER_NAME = user?.first_name || "Guest";
+let USER_USERNAME = user?.username || "NoUsername";
+let USER_ID = user?.id || Date.now();
+
+// Ad & Task variables
+const AD_REWARD = 10;
+let balance = JSON.parse(localStorage.getItem("balance_" + USER_ID) || "0");
+let adsWatched = JSON.parse(localStorage.getItem("ads_" + USER_ID) || "0");
+const DAILY_AD_LIMIT = 50;
+let withdrawHistory = JSON.parse(localStorage.getItem("history_" + USER_ID) || "[]");
+
+// Show user info
+function updateUserUI() {
+    document.getElementById("nameBox").innerText = USER_NAME;
+    document.getElementById("idBox").innerText = USER_ID;
+    document.getElementById("balanceBox").innerText = balance.toFixed(2);
+    document.getElementById("adsWatched").innerText = adsWatched;
+}
+updateUserUI();
+
+// WATCH AD
+function watchAd() {
+    if(adsWatched >= DAILY_AD_LIMIT){
+        alert("আজকের লিমিট শেষ!");
+        return;
+    }
+    if(typeof show_10314131 === 'function'){
+        show_10314131('pop').then(()=>{
+            adsWatched++;
+            balance += AD_REWARD;
+            localStorage.setItem("ads_" + USER_ID, adsWatched);
+            localStorage.setItem("balance_" + USER_ID, balance);
+            updateUserUI();
+            alert(`${AD_REWARD} টাকা যোগ হয়েছে!`);
+        });
+    } else {
+        alert("Ad function not loaded!");
+    }
+}
+
+// SEND WITHDRAW TO ADMIN
+async function sendWithdraw() {
+    let amount = Number(document.getElementById("amount").value);
+    let number = document.getElementById("number").value;
+    let method = document.getElementById("method").value;
+
+    if(!amount || !number){
+        alert("সব ফিল্ড পূরণ করুন");
+        return;
+    }
+    if(amount < 120){
+        alert("Minimum withdraw 120 BDT!");
+        return;
+    }
+    if(amount > balance){
+        alert("Insufficient balance!");
+        return;
+    }
+
+    balance -= amount;
+    localStorage.setItem("balance_" + USER_ID, balance);
+
+    // Save history
+    let now = new Date();
+    withdrawHistory.push({
+        amount, number, method, date: now.toLocaleDateString(), time: now.toLocaleTimeString()
+    });
+    localStorage.setItem("history_" + USER_ID, JSON.stringify(withdrawHistory));
+    updateUserUI();
+    loadHistory();
+
+    // Send message to admin
+    let msg = `📢 New Withdraw Request
+👤 Name: ${USER_NAME}
+🔗 Username: @${USER_USERNAME}
+🆔 User ID: ${USER_ID}
+
+💵 Amount: ৳${amount}
+📱 Number: ${number}
+💳 Method: ${method}`;
+
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({chat_id:ADMIN_ID, text:msg, parse_mode:"Markdown"})
+    });
+
+    alert("Withdraw Request Sent!");
+    document.getElementById("withdrawForm").reset();
+}
+
+// LOAD HISTORY
+function loadHistory(){
+    const box = document.getElementById("historyList");
+    box.innerHTML = "";
+    if(withdrawHistory.length === 0){
+        box.innerHTML = "<p>No withdraw history yet.</p>";
+        return;
+    }
+    withdrawHistory.slice().reverse().forEach(w=>{
+        box.innerHTML += `
+        <div class='card'>
+            <b>Amount:</b> ৳${w.amount}<br>
+            <b>Number:</b> ${w.number}<br>
+            <b>Method:</b> ${w.method}<br>
+            <b>Date:</b> ${w.date} ${w.time}
+        </div>`;
+    });
+}
+</script>
+
 </head>
 <body>
+<div class="container">
 
-<!-- HOME PAGE -->
-<div class="page active" id="home-page">
-  <div class="card">
-    <h2>Welcome, <span id="user-name">User</span>!</h2>
-    <p>Earn 10 BDT per Ad View</p>
-  </div>
-  <div class="card" style="text-align:center;">
-    <p>Total Balance</p>
-    <h1 style="color:#00cc66;"><span id="balance">0.00</span> BDT</h1>
-  </div>
-  <button id="start-earning">Start Earning Now</button>
-  <button id="withdraw-nav-btn" style="background:#00cc66;">Withdraw Money</button>
-</div>
+    <div class="card">
+        <h2>Welcome, <span id="nameBox"></span></h2>
+        <p>User ID: <b id="idBox"></b></p>
+        <p>Balance: <b id="balanceBox">0.00</b> BDT</p>
+        <p>Ads Watched: <b id="adsWatched">0</b></p>
+        <button onclick="watchAd()">Watch Ad & Earn</button>
+    </div>
 
-<!-- EARN PAGE -->
-<div class="page" id="earn-page">
-  <h2>Task Zone</h2>
-  <div class="card">
-    <h3>Watch Ad</h3>
-    <p>Reward: <b>10 BDT</b></p>
-    <p>Daily Limit: <span id="daily-limit">50</span></p>
-    <p>Watched Today: <span id="today-ads">0</span></p>
-    <button id="watch-ad">Watch Ad & Earn</button>
-  </div>
-</div>
+    <div class="card">
+        <h3>Withdraw</h3>
+        <form id="withdrawForm" onsubmit="event.preventDefault(); sendWithdraw();">
+            <input type="number" id="amount" placeholder="Amount">
+            <input type="text" id="number" placeholder="Bkash/Nagad Number">
+            <select id="method">
+                <option>Bkash</option>
+                <option>Nagad</option>
+                <option>Rocket</option>
+            </select>
+            <button type="submit">Withdraw</button>
+        </form>
+    </div>
 
-<!-- WITHDRAW PAGE -->
-<div class="page" id="withdraw-page">
-  <h2>Withdraw Funds</h2>
-  <div class="card">
-    <form id="withdraw-form">
-      <label>Your Name (auto from Telegram)</label>
-      <input type="text" id="withdraw-name" placeholder="Enter your name">
-      <label>Mobile Number</label>
-      <input type="text" id="account-number" placeholder="017xxxxxxxx" required>
-      <label>Select Method</label>
-      <select id="withdraw-method">
-        <option value="bkash">bKash</option>
-        <option value="nagad">Nagad</option>
-        <option value="rocket">Rocket</option>
-      </select>
-      <label>Amount (Min 120 BDT)</label>
-      <input type="number" id="withdraw-amount" placeholder="Amount" required>
-      <button type="submit" style="background:#00cc66;">Confirm Withdraw</button>
-    </form>
-    <div class="withdraw-history" id="withdraw-history"></div>
-  </div>
-</div>
+    <div class="card">
+        <h3>Withdraw History</h3>
+        <button onclick="loadHistory()">Load History</button>
+        <div id="historyList"></div>
+    </div>
 
-<!-- PROFILE PAGE -->
-<div class="page" id="profile-page">
-  <h2>My Profile</h2>
-  <div class="card">
-    <p><b>Name:</b> <span id="profile-name">User</span></p>
-    <p><b>User ID:</b> <span id="user-id">Loading...</span></p>
-    <p><b>Total Balance:</b> <span id="profile-balance">0.00</span> BDT</p>
-  </div>
 </div>
 
 <div class="nav">
-  <div class="nav-item active" data-page="home-page">Home</div>
-  <div class="nav-item" data-page="earn-page">Earn</div>
-  <div class="nav-item" data-page="withdraw-page">Cashout</div>
-  <div class="nav-item" data-page="profile-page">Profile</div>
+    <div>Home</div>
+    <div>Tasks</div>
+    <div>Withdraw</div>
+    <div>Profile</div>
 </div>
-
-<script>
-const tg = window.Telegram?.WebApp;
-tg?.expand();
-const BOT_TOKEN = "YOUR_BOT_TOKEN";
-const ADMIN_ID = "YOUR_ADMIN_ID";
-const AD_REWARD = 10;
-const MIN_WITHDRAW = 120;
-
-let user = { first_name:"Guest", username:"guest", id:Date.now() };
-if(tg && tg.initDataUnsafe && tg.initDataUnsafe.user){
-    user.first_name = tg.initDataUnsafe.user.first_name || "Guest";
-    user.username = tg.initDataUnsafe.user.username || "guest";
-    user.id = tg.initDataUnsafe.user.id || Date.now();
-}
-
-let balance = JSON.parse(localStorage.getItem("balance_"+user.id)||"0");
-let adsWatched = JSON.parse(localStorage.getItem("ads_"+user.id)||"0");
-let withdrawHistory = JSON.parse(localStorage.getItem("withdrawHistory_"+user.id)||"[]");
-
-// Fill Telegram name automatically
-document.getElementById("withdraw-name").value = user.first_name;
-
-function updateUI(){
-    document.getElementById("balance").textContent = balance.toFixed(2);
-    document.getElementById("user-name").textContent = user.first_name;
-    document.getElementById("today-ads").textContent = adsWatched;
-    document.getElementById("profile-name").textContent = user.first_name;
-    document.getElementById("user-id").textContent = user.id;
-    document.getElementById("profile-balance").textContent = balance.toFixed(2);
-    renderWithdrawHistory();
-}
-updateUI();
-
-// NAVIGATION
-document.querySelectorAll(".nav-item").forEach(btn=>{
-  btn.onclick = ()=>{
-    document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-    document.getElementById(btn.dataset.page).classList.add("active");
-  };
-});
-
-// WATCH AD
-document.getElementById("watch-ad").onclick = ()=>{
-  if(typeof show_10314131==='function'){
-    show_10314131('pop').then(()=>{
-      adsWatched++;
-      balance += AD_REWARD;
-      localStorage.setItem("ads_"+user.id, adsWatched);
-      localStorage.setItem("balance_"+user.id, balance);
-      updateUI();
-      tg?.showAlert(`${AD_REWARD} টাকা যোগ হয়েছে!`);
-    });
-  } else { alert("Ad function not loaded!"); }
-};
-
-// PAGE BUTTONS
-document.getElementById("start-earning").onclick = ()=>{ document.querySelector('[data-page="earn-page"]').click(); };
-document.getElementById("withdraw-nav-btn").onclick = ()=>{ document.querySelector('[data-page="withdraw-page"]').click(); };
-
-// SEND TO ADMIN
-function sendToAdmin(text){
-  fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method:"POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: ADMIN_ID, text: text, parse_mode: "HTML" })
-  });
-}
-
-// WITHDRAW FORM
-document.getElementById("withdraw-form").onsubmit = (e)=>{
-  e.preventDefault();
-  let withdrawName = document.getElementById("withdraw-name").value || user.first_name;
-  let amount = Number(document.getElementById("withdraw-amount").value);
-  let number = document.getElementById("account-number").value;
-  let method = document.getElementById("withdraw-method").value;
-
-  if(amount < MIN_WITHDRAW){ tg?.showAlert(`Minimum withdraw ${MIN_WITHDRAW} BDT!`); return; }
-  if(amount > balance){ tg?.showAlert("Insufficient balance!"); return; }
-
-  balance -= amount;
-  localStorage.setItem("balance_"+user.id, balance);
-
-  let now = new Date();
-  let record = { date: now.toLocaleDateString(), time: now.toLocaleTimeString(), amount, method, number };
-  withdrawHistory.push(record);
-  localStorage.setItem("withdrawHistory_"+user.id, JSON.stringify(withdrawHistory));
-  updateUI();
-
-  // SEND TO ADMIN WITH REAL NAME, USERNAME, USER ID
-  let msg = `📢 New Withdraw Request\n\n👤 Name: ${withdrawName}\n🔗 Username: @${user.username}\n🆔 User ID: ${user.id}\n\n💵 Amount: ৳${amount}\n📱 Number: ${number}\n💳 Method: ${method}`;
-  sendToAdmin(msg);
-  tg?.showAlert("Withdraw request sent!");
-  document.getElementById("withdraw-form").reset();
-};
-
-// RENDER HISTORY
-function renderWithdrawHistory(){
-  const container = document.getElementById("withdraw-history");
-  container.innerHTML = '';
-  if(withdrawHistory.length===0){ container.innerHTML='<p>No withdraws yet.</p>'; return; }
-  withdrawHistory.slice().reverse().forEach(w=>{
-    let div = document.createElement('div');
-    div.className='withdraw-item';
-    div.innerHTML=`<b>${w.date} ${w.time}</b><br>Amount: ${w.amount} BDT<br>Method: ${w.method}<br>Number: ${w.number}`;
-    container.appendChild(div);
-  });
-}
-</script>
 </body>
 </html>
