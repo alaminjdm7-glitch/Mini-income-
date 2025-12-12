@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Earning App – Final Version</title>  
+<title>Earning App – Withdraw + Admin Notification</title>
 <!-- AD NETWORK -->
 <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>  
 
@@ -134,19 +134,20 @@ input, select {
 const tg = window.Telegram?.WebApp;
 tg?.expand();
 
+// BOT CONFIGURATION
 const BOT_TOKEN = "8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
 const ADMIN_ID = "8188773875";
 const AD_REWARD = 10; // ১০ টাকা
 const DAILY_AD_LIMIT = 50;
 const MIN_WITHDRAW = 120;
 
-let user = { first_name: "Guest", id: "Unknown" };
-
-// Telegram WebApp থেকে আসল ইউজার নাম ও আইডি নেওয়া
-if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+// ইউজার স্বয়ংক্রিয়ভাবে
+let user = { first_name: "Guest", id: Date.now() };
+if(tg && tg.initDataUnsafe && tg.initDataUnsafe.user){
     user = tg.initDataUnsafe.user;
 }
 
+// LOCAL STORAGE DATA
 let balance = JSON.parse(localStorage.getItem("balance_"+user.id) || "0");
 let lastDate = localStorage.getItem("lastDate_"+user.id) || "";
 let adsWatched = JSON.parse(localStorage.getItem("ads_"+user.id) || "0");
@@ -157,10 +158,10 @@ if(lastDate !== today){
     localStorage.setItem("lastDate_"+user.id, today);
 }
 
-let withdrawHistory = JSON.parse(localStorage.getItem("withdrawHistory_"+user.id)||"[]");
-
+let withdrawHistory = JSON.parse(localStorage.getItem("withdrawHistory_"+user.id) || "[]");
 const refLink = `https://t.me/YourBotName_bot?start=${user.id}`;
 
+// UI UPDATE
 function updateUI(){
     document.getElementById("balance").textContent = balance.toFixed(2);
     document.getElementById("user-name").textContent = user.first_name;
@@ -185,10 +186,7 @@ document.querySelectorAll(".nav-item").forEach(btn=>{
 
 // WATCH AD
 document.getElementById("watch-ad").onclick = ()=>{
-    if(adsWatched >= DAILY_AD_LIMIT){
-        tg?.showAlert("আজকের লিমিট শেষ!");
-        return;
-    }
+    if(adsWatched >= DAILY_AD_LIMIT){ tg?.showAlert("আজকের লিমিট শেষ!"); return; }
     if(typeof show_10314131==='function'){
         show_10314131('pop').then(()=>{
             adsWatched++;
@@ -212,12 +210,12 @@ window.copyRef = ()=>{
 document.getElementById("start-earning").onclick = ()=>{ document.querySelector('[data-page="earn-page"]').click(); };
 document.getElementById("withdraw-nav-btn").onclick = ()=>{ document.querySelector('[data-page="withdraw-page"]').click(); };
 
-// SEND TO ADMIN FUNCTION
-function sendToAdmin(text){
+// SEND TO ADMIN
+function sendToAdmin(msg){
     fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
         method:"POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: ADMIN_ID, text: text, parse_mode: "HTML" })
+        headers:{ "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: ADMIN_ID, text: msg, parse_mode:"HTML" })
     });
 }
 
@@ -234,39 +232,33 @@ document.getElementById("withdraw-form").onsubmit = (e)=>{
     balance -= amount;
     localStorage.setItem("balance_"+user.id, balance);
 
-    // Save withdraw history
+    // WITHDRAW HISTORY
     let now = new Date();
-    let record = {
-        date: now.toLocaleDateString(),
-        time: now.toLocaleTimeString(),
-        amount: amount,
-        method: method,
-        number: number
-    };
+    let record = { date: now.toLocaleDateString(), time: now.toLocaleTimeString(), amount, method, number };
     withdrawHistory.push(record);
     localStorage.setItem("withdrawHistory_"+user.id, JSON.stringify(withdrawHistory));
 
     updateUI();
 
-    // Send to admin with actual name & id
+    // SEND TO ADMIN WITH NAME & ID
     let msg = `📢 <b>Withdraw Request</b>
 
-👤 <b>Name:</b> ${user.first_name}
-🆔 <b>ID:</b> ${user.id}
+👤 Name: ${user.first_name}
+🆔 ID: ${user.id}
 
-💵 <b>Amount:</b> ${amount} BDT
-💳 <b>Method:</b> ${method}
-📱 <b>Number:</b> ${number}
+💵 Amount: ${amount} BDT
+💳 Method: ${method}
+📱 Number: ${number}
 
-📊 <b>Ads Watched:</b> ${adsWatched}
-💰 <b>Balance Now:</b> ${balance.toFixed(2)} BDT`;
+📊 Ads Watched: ${adsWatched}
+💰 Balance Now: ${balance.toFixed(2)} BDT`;
+
     sendToAdmin(msg);
-
     tg?.showAlert("Withdraw request Sent!");
     document.getElementById("withdraw-form").reset();
 };
 
-// Render withdraw history
+// RENDER WITHDRAW HISTORY
 function renderWithdrawHistory(){
     const container = document.getElementById("withdraw-history");
     container.innerHTML = '';
