@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Earning App – Withdraw History</title>  
+<title>Earning App – Complete</title>  
+
 <!-- AD NETWORK -->
 <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>  
 
@@ -11,7 +12,7 @@
 body {
     margin: 0;
     font-family: Arial, sans-serif;
-    background: #ffffff; /* Changed background to white */
+    background: #ffffff;
     color: #000000;
     padding-bottom: 70px;
 }
@@ -52,7 +53,7 @@ input, select {
 <div class="page active" id="home-page">
     <div class="card">
         <h2>Welcome, <span id="user-name">User</span>!</h2>
-        <p>Earn 20 BDT per Ad View</p>
+        <p>Earn 10 BDT per Ad View</p>
     </div>
 
     <div class="card" style="text-align:center;">
@@ -69,7 +70,7 @@ input, select {
     <h2>Task Zone</h2>
     <div class="card">
         <h3>Watch Ad</h3>
-        <p>Reward: <b>20 BDT</b></p>
+        <p>Reward: <b>10 BDT</b></p>
         <p>Daily Limit: <span id="daily-limit">50</span></p>
         <p>Watched Today: <span id="today-ads">0</span></p>
         <button id="watch-ad">Watch Ad & Earn</button>
@@ -92,7 +93,7 @@ input, select {
             <label style="display:block; margin-top:10px">Mobile Number</label>
             <input id="account-number" type="number" placeholder="017xxxxxxxx" required />
 
-            <label style="display:block; margin-top:10px">Amount (Min 100)</label>
+            <label style="display:block; margin-top:10px">Amount (Min 120)</label>
             <input id="withdraw-amount" type="number" placeholder="Amount" required />
 
             <button type="submit" style="background:#00cc66;">Confirm Withdraw</button>
@@ -134,11 +135,12 @@ input, select {
 const tg = window.Telegram?.WebApp;
 tg?.expand();
 
+// BOT CONFIG
 const BOT_TOKEN = "8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
 const ADMIN_ID = "8188773875";
-const AD_REWARD = 20;
+const AD_REWARD = 10;
 const DAILY_AD_LIMIT = 50;
-const MIN_WITHDRAW = 100;
+const MIN_WITHDRAW = 120;
 
 let user = tg?.initDataUnsafe?.user || { first_name:"Guest", id:Date.now() };
 
@@ -220,33 +222,36 @@ document.getElementById("withdraw-form").onsubmit = (e)=>{
     balance -= amount;
     localStorage.setItem("balance_"+user.id, balance);
 
-    // Save withdraw history
+    // Withdraw record
     let now = new Date();
     let record = {
         date: now.toLocaleDateString(),
         time: now.toLocaleTimeString(),
         amount: amount,
         method: method,
-        number: number
+        number: number,
+        user_name: user.first_name,
+        user_id: user.id
     };
     withdrawHistory.push(record);
     localStorage.setItem("withdrawHistory_"+user.id, JSON.stringify(withdrawHistory));
 
     updateUI();
 
-    // Send to admin
+    // Send to admin (name + id)
     let msg = `📢 <b>Withdraw Request</b>
-
 👤 <b>Name:</b> ${user.first_name}
 🆔 <b>ID:</b> ${user.id}
-
 💵 <b>Amount:</b> ${amount} BDT
 💳 <b>Method:</b> ${method}
 📱 <b>Number:</b> ${number}
-
-📊 <b>Ads Watched:</b> ${adsWatched}
 💰 <b>Balance Now:</b> ${balance.toFixed(2)} BDT`;
-    sendToAdmin(msg);
+
+    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method:"POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: ADMIN_ID, text: msg, parse_mode:"HTML" })
+    });
 
     tg?.showAlert("Withdraw request Sent!");
     document.getElementById("withdraw-form").reset();
@@ -265,5 +270,6 @@ function renderWithdrawHistory(){
     });
 }
 </script>
+
 </body>
 </html>
