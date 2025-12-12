@@ -1,165 +1,241 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram Bot Code + Rewarded Ads</title>
-<style>
-    body { background:#1e1e1e; color:#d4d4d4; font-family:'Courier New', monospace; padding:20px;}
-    pre { background:#2d2d2d; padding:15px; border-radius:8px; overflow-x:auto; white-space:pre-wrap; word-wrap:break-word;}
-    .comment { color:#6a9955; font-style:italic;}
-    .keyword { color:#569cd6; font-weight:bold;}
-    .string { color:#ce9178;}
-</style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Earning App – Complete</title>
+
+    <!-- YOUR AD NETWORK SCRIPT -->
+    <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f0f0f;
+            color: white;
+        }
+
+        .page {
+            display: none;
+            padding: 20px;
+        }
+        .page.active {
+            display: block;
+        }
+
+        .nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #111;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid #333;
+        }
+
+        .nav-item {
+            color: #aaa;
+            font-size: 15px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            color: #00ff99;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 17px;
+            border: none;
+            border-radius: 8px;
+            background: #ff3c3c;
+            color: white;
+            margin-top: 18px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            background: #1c1c1c;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 6px;
+            margin-top: 12px;
+        }
+    </style>
 </head>
+
 <body>
 
-<h2>Telegram Bot + Rewarded Ads (10 টাকা প্রতি এড)</h2>
+    <!-- HOME PAGE -->
+    <div class="page active" id="home-page">
+        <h2>Welcome to Earning App</h2>
+        <p>Earn Money by Watching Ads</p>
+        <h1>Balance: <span id="balance">0.00</span> BDT</h1>
 
-<pre>
-<span class="comment">import telebot</span>
-<span class="comment">from telebot import types</span>
-<span class="comment">import sqlite3, time, threading</span>
+        <button id="start-earning">Start Earning Now</button>
+        <button id="withdraw-btn" style="background:#00cc66;">Withdraw</button>
+    </div>
 
-<span class="comment"># ----------- কনফিগারেশন -----------</span>
-BOT_TOKEN = <span class="string">'8439942678:AAEUHHv3iH0BCiX0qoPr-xU11mNtx0fKwtc'</span>
-ADMIN_ID = 6584555182
-USER_LIMIT = 500
+    <!-- EARN PAGE -->
+    <div class="page" id="earn-page">
+        <h2>Earn by Watching Ads</h2>
+        <p>Daily Ad Limit: <span id="daily-limit">20</span></p>
+        <p>Today Watched: <span id="today-ads">0</span></p>
 
-bot = telebot.TeleBot(BOT_TOKEN)
+        <button id="watch-ad">Watch Ad & Earn</button>
+    </div>
 
-<span class="comment"># ----------- ডাটাবেস সেটআপ -----------</span>
-def init_db():
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute(<span class="string">'''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, balance INTEGER DEFAULT 0)'''</span>)
-    cursor.execute(<span class="string">'''CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, amount INTEGER, number TEXT, method TEXT)'''</span>)
-    conn.commit(); conn.close()
+    <!-- WITHDRAW PAGE -->
+    <div class="page" id="withdraw-page">
+        <h2>Withdraw Money</h2>
 
-init_db()
+        <form id="withdraw-form">
+            <label>Payment Method</label>
+            <select id="withdraw-method">
+                <option value="bkash">bKash</option>
+                <option value="nagad">Nagad</option>
+                <option value="rocket">Rocket</option>
+            </select>
 
-<span class="comment"># ডাটাবেস হেল্পার ফাংশন</span>
-def get_db_connection(): return sqlite3.connect('bot_database.db', check_same_thread=False)
-def get_total_users():
-    conn = get_db_connection(); cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users")
-    count = cursor.fetchone()[0]; conn.close(); return count
-def is_user_exists(user_id):
-    conn = get_db_connection(); cursor = conn.cursor()
-    cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone(); conn.close(); return result is not None
-def add_user(user_id):
-    if get_total_users() &gt;= USER_LIMIT: return False
-    conn = get_db_connection(); cursor = conn.cursor()
-    cursor.execute("INSERT INTO users (user_id, balance) VALUES (?, ?)", (user_id,0))
-    conn.commit(); conn.close(); return True
-def get_balance(user_id):
-    conn = get_db_connection(); cursor = conn.cursor()
-    cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone(); conn.close()
-    return result[0] if result else 0
-def update_balance(user_id, amount):
-    conn = get_db_connection(); cursor = conn.cursor()
-    cursor.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount,user_id))
-    conn.commit(); conn.close()
+            <label>Account Number</label>
+            <input id="account-number" type="number" placeholder="Enter Number" />
 
-<span class="comment"># ----------- মেইন মেনু -----------</span>
-def main_menu():
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    markup.add(types.KeyboardButton("🏠 Home"), types.KeyboardButton("📋 Task"),
-               types.KeyboardButton("💰 Withdraw"), types.KeyboardButton("📞 Support"))
-    return markup
+            <label>Amount</label>
+            <input id="withdraw-amount" type="number" placeholder="Minimum 100" />
 
-<span class="comment"># ----------- স্টার্ট কমান্ড -----------</span>
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    user_id = message.chat.id
-    if not is_user_exists(user_id):
-        if add_user(user_id): bot.send_message(user_id, "স্বাগতম! জয়েন করার জন্য ধন্যবাদ।", reply_markup=main_menu())
-        else: bot.send_message(user_id, "দুঃখিত! বটের ৫০০ জন মেম্বার পূর্ণ।")
-    else: bot.send_message(user_id, "আপনি ইতিমধ্যে জয়েন আছেন!", reply_markup=main_menu())
+            <button type="submit" style="background:#00cc66;">Submit Withdraw</button>
+        </form>
+    </div>
 
-<span class="comment"># ----------- বাটন হ্যান্ডলার -----------</span>
-@bot.message_handler(func=lambda message: True)
-def handle_buttons(message):
-    user_id = message.chat.id
-    text = message.text
-    if text == "🏠 Home":
-        bal = get_balance(user_id)
-        bot.send_message(user_id,f"👤 <b>User Profile</b>\n\n🆔 ID: `{user_id}`\n💰 Balance: <b>{bal} টাকা</b>\n\nকাজ করতে Task বাটনে ক্লিক করুন।", parse_mode='HTML')
+    <!-- PROFILE PAGE -->
+    <div class="page" id="profile-page">
+        <h2>Profile</h2>
+        <p>Name: <span id="profile-name">User</span></p>
+        <p>Balance: <span id="profile-balance">0.00</span> BDT</p>
+        <p>Ads Watched: <span id="profile-ads-watched">0</span></p>
+        <p>Referrals: <span id="profile-referrals">0</span></p>
+    </div>
 
-    elif text == "📋 Task":
-        bot.send_message(user_id,"⏳ অ্যাড লোড হচ্ছে... দয়া করে ৫ সেকেন্ড অপেক্ষা করুন।")
-        time.sleep(2)
-        reward = 10
-        update_balance(user_id, reward)
-        bot.send_message(user_id,f"✅ টাস্ক সম্পন্ন হয়েছে! আপনি {reward} টাকা পেয়েছেন।\n📢 Rewarded Ad দেখার জন্য JS SDK ব্যবহার হয়েছে।")
+    <!-- Navigation -->
+    <div class="nav">
+        <div class="nav-item active" data-page="home-page">Home</div>
+        <div class="nav-item" data-page="earn-page">Earn</div>
+        <div class="nav-item" data-page="withdraw-page">Withdraw</div>
+        <div class="nav-item" data-page="profile-page">Profile</div>
+    </div>
 
-    elif text == "💰 Withdraw":
-        bal = get_balance(user_id)
-        if bal &lt; 100: bot.send_message(user_id,f"❌ আপনার ব্যালেন্স কম। মিনিমাম উইথড্র ১০০ টাকা।\nআপনার আছে: {bal} টাকা")
-        else:
-            msg = bot.send_message(user_id,"পেমেন্ট মেথড লিখুন (Bkash/Nagad):")
-            bot.register_next_step_handler(msg, process_payment_method)
 
-    elif text == "📞 Support":
-        bot.send_message(user_id,"যে কোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন: @YourAdminUserName")
-
-<span class="comment"># ----------- উইথড্র প্রসেস -----------</span>
-def process_payment_method(message):
-    user_id = message.chat.id
-    method = message.text
-    msg = bot.send_message(user_id,"আপনার নাম্বারটি লিখুন:")
-    bot.register_next_step_handler(msg, process_number, method)
-def process_number(message, method):
-    user_id = message.chat.id
-    number = message.text
-    msg = bot.send_message(user_id,"কত টাকা উইথড্র করতে চান? (সংখ্যায় লিখুন)")
-    bot.register_next_step_handler(msg, process_amount, method, number)
-def process_amount(message, method, number):
-    user_id = message.chat.id
-    try:
-        amount = int(message.text)
-        current_bal = get_balance(user_id)
-        if amount &gt; current_bal: bot.send_message(user_id,"❌ অপর্যাপ্ত ব্যালেন্স!")
-        elif amount &lt; 100: bot.send_message(user_id,"❌ মিনিমাম ১০০ টাকা হতে হবে।")
-        else:
-            update_balance(user_id,-amount)
-            conn = get_db_connection(); cursor = conn.cursor()
-            cursor.execute("INSERT INTO withdrawals (user_id,amount,number,method) VALUES (?,?,?,?)",(user_id,amount,number,method))
-            conn.commit(); conn.close()
-            bot.send_message(user_id,"✅ উইথড্র রিকোয়েস্ট সফল হয়েছে! এডমিন চেক করবেন।")
-            bot.send_message(ADMIN_ID,f"🔔 <b>New Withdraw Request!</b>\nUser: {user_id}\nAmount: {amount}\nMethod: {method}\nNumber: {number}", parse_mode='HTML')
-
-<span class="comment"># ----------- অটো অ্যাড সিস্টেম -----------</span>
-def auto_ad_sender():
-    while True:
-        time.sleep(3600)
-        ad_message = "📢 <b>SPONSORED AD</b>\n\nআমাদের নতুন অফার দেখুন! জয়েন করুন: @YourChannelLink"
-        conn = get_db_connection(); cursor = conn.cursor(); cursor.execute("SELECT user_id FROM users")
-        users = cursor.fetchall(); conn.close()
-        print(f"Sending Auto Ad to {len(users)} users...")
-        for user in users:
-            try: bot.send_message(user[0], ad_message, parse_mode='HTML'); time.sleep(0.5)
-            except Exception as e: print(f"Failed to send to {user[0]}: {e}")
-ad_thread = threading.Thread(target=auto_ad_sender); ad_thread.daemon=True; ad_thread.start()
-
-print("Bot is running...")
-bot.infinity_polling()
-</pre>
-
-<!-- Updated Rewarded Popup SDK with your code -->
-<script src='//libtl.com/sdk.js' data-zone='10314535' data-sdk='show_10314535'></script>
 <script>
-// Rewarded Popup
-show_10314535('pop').then(() => {
-    // user watch ad till the end or close it in interstitial format
-    // আপনার কোড অনুযায়ী ইউজারকে 10 টাকা রিওয়ার্ড
-    console.log("User watched the ad. Reward 10 টাকা!");
-}).catch(e => {
-    // ইউজার এড না দেখলে বা এরর হলে কিছু করবেন না
-    console.log("Ad skipped or error.");
-});
+    const tg = window.Telegram?.WebApp;
+
+    // Constants
+    const AD_REWARD = 0.20;
+    const DAILY_AD_LIMIT = 20;
+    const MIN_WITHDRAW = 100;
+
+    // Local Storage Loader
+    function load(key, defaultValue) {
+        return localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)) : defaultValue;
+    }
+
+    function save(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    let balance = load("balance", 0);
+    let adsWatched = load("adsWatched", 0);
+    let referrals = load("referrals", 0);
+
+    // UI Update
+    function updateUI() {
+        document.getElementById("balance").textContent = balance.toFixed(2);
+        document.getElementById("today-ads").textContent = adsWatched;
+        document.getElementById("daily-limit").textContent = DAILY_AD_LIMIT;
+        document.getElementById("profile-name").textContent = tg?.initDataUnsafe?.user?.first_name || "User";
+        document.getElementById("profile-balance").textContent = balance.toFixed(2);
+        document.getElementById("profile-ads-watched").textContent = adsWatched;
+        document.getElementById("profile-referrals").textContent = referrals;
+    }
+
+    updateUI();
+
+    // Navigation
+    document.querySelectorAll(".nav-item").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+            btn.classList.add("active");
+
+            let page = btn.getAttribute("data-page");
+
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+            document.getElementById(page).classList.add("active");
+        });
+    });
+
+    // WATCH AD BUTTON WITH YOUR REWARDED AD
+    document.getElementById("watch-ad").addEventListener("click", () => {
+
+        if (adsWatched >= DAILY_AD_LIMIT) {
+            tg?.showAlert("আজকের লিমিট পূর্ণ হয়েছে!");
+            return;
+        }
+
+        // Show Reward Ad
+        show_10314131('pop')
+            .then(() => {
+                // USER WATCHED THE AD SUCCESSFULLY → GIVE REWARD
+                adsWatched++;
+                balance += AD_REWARD;
+
+                save("adsWatched", adsWatched);
+                save("balance", balance);
+                updateUI();
+            })
+            .catch(() => {
+                // ERROR PLAYING AD → NO REWARD
+                tg?.showAlert("Ad failed to load!");
+            });
+    });
+
+    // Start Earning → Earn Page
+    document.getElementById("start-earning").addEventListener("click", () => {
+        document.querySelector('[data-page="earn-page"]').click();
+    });
+
+    // Withdraw → Withdraw Page
+    document.getElementById("withdraw-btn").addEventListener("click", () => {
+        document.querySelector('[data-page="withdraw-page"]').click();
+    });
+
+    // Withdraw Form
+    document.getElementById("withdraw-form").addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        let amount = Number(document.getElementById("withdraw-amount").value);
+
+        if (amount < MIN_WITHDRAW) {
+            tg?.showAlert("Minimum withdraw is 100 BDT!");
+            return;
+        }
+        if (amount > balance) {
+            tg?.showAlert("Balance is not enough!");
+            return;
+        }
+
+        balance -= amount;
+        save("balance", balance);
+
+        updateUI();
+
+        tg?.showAlert("Withdraw Request Submitted!");
+        document.getElementById("withdraw-form").reset();
+    });
 </script>
 
 </body>
