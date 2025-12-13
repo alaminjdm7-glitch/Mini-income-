@@ -1,5 +1,4 @@
-
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -15,6 +14,7 @@ body {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
+    scroll-behavior: smooth;
 }
 .container {
     max-width: 420px;
@@ -53,6 +53,7 @@ button {
 .nav div {
     font-size: 18px;
     font-weight: bold;
+    cursor: pointer;
 }
 input, select { width: 100%; padding: 10px; margin-top: 10px; font-size: 16px; border-radius: 6px; border:1px solid #ccc; }
 .withdraw-history, .task-history { max-height:200px; overflow-y:auto; margin-top:10px; }
@@ -76,13 +77,18 @@ let USER_ID = user?.id || Date.now();
 // Task & Ad Config
 const CHANNEL_JOIN_REWARD = 5;
 const CHANNEL_VIEW_REWARD = 1;
-const AD_REWARD = 2;
+const AD_REWARD = 10; // 10 টাকা
 const MAX_DAILY_ADS = 30;
-const CHANNEL_LINK = "https://t.me/YOUR_CHANNEL";
+const MAX_WITHDRAW = 500; // Withdraw limit
+const CHANNEL_JOIN_LINKS = [
+  "https://t.me/DevleparX_Namid",
+  "https://t.me/GmailMarketingB",
+  "https://t.me/BDIncomep"
+];
+const CHANNEL_VIEW_LINK = "https://t.me/GmailMarketing_99bot";
 
 // User Data
 let balance = JSON.parse(localStorage.getItem("balance_" + USER_ID) || "0");
-let adsWatched = JSON.parse(localStorage.getItem("ads_" + USER_ID) || "0");
 let withdrawHistory = JSON.parse(localStorage.getItem("history_" + USER_ID) || "[]");
 let taskHistory = JSON.parse(localStorage.getItem("task_history_" + USER_ID) || "[]");
 
@@ -130,31 +136,42 @@ function watchAd(){
     });
 }
 
-// CHANNEL JOIN TASK (ONE TIME)
-function joinChannel(){
-    let joined = getData("joined_channel_" + USER_ID, false);
-    if(joined){ alert("✅ আপনি ইতিমধ্যে চ্যানেল জয়েন করেছেন"); return; }
-    window.open(CHANNEL_LINK, "_blank");
+// CHANNEL JOIN TASK (ONE TIME PER CHANNEL)
+function joinChannel(index){
+    let joinedKey = "joined_channel_" + USER_ID + "_" + index;
+    if(getData(joinedKey,false)){
+        alert("✅ আপনি ইতিমধ্যে এই চ্যানেল জয়েন করেছেন");
+        return;
+    }
+    window.open(CHANNEL_JOIN_LINKS[index], "_blank");
     setTimeout(()=>{
-        setData("joined_channel_" + USER_ID, true);
+        setData(joinedKey, true);
         balance += CHANNEL_JOIN_REWARD;
         localStorage.setItem("balance_" + USER_ID, balance);
         updateUserUI();
-        taskHistory.push({type:"Channel Join", reward:CHANNEL_JOIN_REWARD, date:new Date().toLocaleString()});
+        taskHistory.push({type:"Channel Join", reward:CHANNEL_JOIN_REWARD, date:new Date().toLocaleString(), channel:CHANNEL_JOIN_LINKS[index]});
         localStorage.setItem("task_history_" + USER_ID, JSON.stringify(taskHistory));
         alert("🎉 চ্যানেল জয়েন সফল!\nআপনি " + CHANNEL_JOIN_REWARD + " টাকা পেয়েছেন");
     }, 4000);
 }
 
-// CHANNEL VIEW TASK (UNLIMITED)
+// CHANNEL VIEW TASK (FIRST TIME ONLY)
 function viewChannel(){
-    window.open(CHANNEL_LINK, "_blank");
-    balance += CHANNEL_VIEW_REWARD;
-    localStorage.setItem("balance_" + USER_ID, balance);
-    updateUserUI();
-    taskHistory.push({type:"Channel View", reward:CHANNEL_VIEW_REWARD, date:new Date().toLocaleString()});
-    localStorage.setItem("task_history_" + USER_ID, JSON.stringify(taskHistory));
-    alert("👀 চ্যানেল ভিউ সফল!\nআপনি " + CHANNEL_VIEW_REWARD + " টাকা পেয়েছেন");
+    let firstViewKey = "first_view_" + USER_ID;
+    if(!getData(firstViewKey,false)){
+        // First time view
+        window.open(CHANNEL_VIEW_LINK, "_blank");
+        setData(firstViewKey,true);
+        taskHistory.push({type:"Channel View", reward:CHANNEL_VIEW_REWARD, date:new Date().toLocaleString(), first:true});
+        localStorage.setItem("task_history_" + USER_ID, JSON.stringify(taskHistory));
+        balance += CHANNEL_VIEW_REWARD;
+        localStorage.setItem("balance_" + USER_ID, balance);
+        updateUserUI();
+        alert("👀 প্রথমবার ভিউ সফল!\nআপনি " + CHANNEL_VIEW_REWARD + " টাকা পেয়েছেন");
+    } else {
+        // Subsequent clicks only Ad
+        watchAd();
+    }
 }
 
 // WITHDRAW
@@ -164,8 +181,9 @@ async function sendWithdraw(){
     let method = document.getElementById("method").value;
 
     if(!amount || !number){ alert("সব ফিল্ড পূরণ করুন"); return; }
-    if(amount < 120){ alert("Minimum withdraw 120 BDT!"); return; }
     if(amount > balance){ alert("Insufficient balance!"); return; }
+    if(amount > MAX_WITHDRAW){ alert("⚠️ Maximum withdraw is " + MAX_WITHDRAW + " BDT"); return; }
+    if(amount < 120){ alert("Minimum withdraw 120 BDT!"); return; }
 
     balance -= amount;
     localStorage.setItem("balance_" + USER_ID, balance);
@@ -217,9 +235,16 @@ function loadTaskHistory(){
         box.innerHTML += `<div class='card'>
             <b>Task:</b> ${t.type}<br>
             <b>Reward:</b> ৳${t.reward}<br>
+            ${t.channel ? "<b>Channel:</b> " + t.channel + "<br>" : ""}
             <b>Date:</b> ${t.date}
         </div>`;
     });
+}
+
+// NAVIGATION
+function scrollToSection(section){
+    let el = document.getElementById(section);
+    if(el) el.scrollIntoView({behavior:"smooth"});
 }
 </script>
 </head>
@@ -227,26 +252,28 @@ function loadTaskHistory(){
 <div class="container">
 
     <!-- DASHBOARD NOTICE -->
-    <div class="card">
+    <div class="card" id="dashboard">
         <h3>📊 Dashboard</h3>
-        <div class="notice">নোটিশ লিখুন এখানে, পরে আপডেট করবেন।</div>
+        <div class="notice">এটি আমাদের অফিসের ইনকাম সাইট। এখান থেকে উরাধুরা ইনকাম করার চেষ্টা করুন।</div>
         <p>User: <b id="nameBox"></b> | ID: <b id="idBox"></b></p>
         <p>Balance: <b id="balanceBox">0.00</b> BDT</p>
     </div>
 
     <!-- TASKS -->
-    <div class="card">
+    <div class="card" id="tasks">
         <h3>🎯 Tasks</h3>
-        <button onclick="joinChannel()">📢 Join Channel (+5৳)</button>
-        <button onclick="viewChannel()">👀 View Channel (+1৳)</button>
-        <button onclick="watchAd()">▶️ Watch Ad (+2৳)</button>
+        <button onclick="joinChannel(0)">📢 Join Channel 1 (+5৳)</button>
+        <button onclick="joinChannel(1)">📢 Join Channel 2 (+5৳)</button>
+        <button onclick="joinChannel(2)">📢 Join Channel 3 (+5৳)</button>
+        <button onclick="viewChannel()">👀 View Channel (+1৳ first time)</button>
+        <button onclick="watchAd()">▶️ Watch Ad (+10৳)</button>
         <p style="margin-top:10px">Ads Watched: <b id="adsWatched">0 / 30</b></p>
         <button onclick="loadTaskHistory()">📜 Task History</button>
         <div id="taskHistoryList" class="task-history"></div>
     </div>
 
     <!-- WITHDRAW -->
-    <div class="card">
+    <div class="card" id="withdraw">
         <h3>Withdraw</h3>
         <form id="withdrawForm" onsubmit="event.preventDefault(); sendWithdraw();">
             <input type="number" id="amount" placeholder="Amount">
@@ -262,13 +289,27 @@ function loadTaskHistory(){
         <div id="historyList" class="withdraw-history"></div>
     </div>
 
+    <!-- PROFILE -->
+    <div class="card" id="profile">
+        <h3>👤 Profile</h3>
+        <p>Name: <b id="nameBoxProfile"></b></p>
+        <p>Username: <b id="usernameSpan"></b></p>
+        <p>User ID: <b id="idBoxProfile"></b></p>
+    </div>
+
 </div>
 
 <div class="nav">
-    <div>Home</div>
-    <div>Tasks</div>
-    <div>Withdraw</div>
-    <div>Profile</div>
+    <div onclick="scrollToSection('dashboard')">Home</div>
+    <div onclick="scrollToSection('tasks')">Tasks</div>
+    <div onclick="scrollToSection('withdraw')">Withdraw</div>
+    <div onclick="scrollToSection('profile')">Profile</div>
 </div>
+
+<script>
+document.getElementById("nameBoxProfile").innerText = USER_NAME;
+document.getElementById("usernameSpan").innerText = USER_USERNAME;
+document.getElementById("idBoxProfile").innerText = USER_ID;
+</script>
 </body>
-</html>  
+</html>
