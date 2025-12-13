@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="bn">
 <head>
@@ -8,190 +7,212 @@
 
 <!-- AD NETWORK -->
 <script src="//libtl.com/sdk.js" data-zone="10314131" data-sdk="show_10314131"></script>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff}
-.page{display:none;padding:20px}
-.page.active{display:block}
-.nav{position:fixed;bottom:0;width:100%;background:#111;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #333}
-.nav-item{color:#aaa;font-size:14px;cursor:pointer}
-.nav-item.active{color:#00ff99}
-button{width:100%;padding:12px;font-size:16px;border:none;border-radius:8px;background:#ff3c3c;color:white;margin-top:12px}
-input,select{width:100%;padding:10px;background:#1c1c1c;border:1px solid #333;color:#fff;border-radius:6px;margin-top:10px}
-.notice{background:#1c1c1c;padding:10px;border-radius:6px;margin-bottom:10px;color:#00ff99}
-.card{background:#161616;padding:15px;border-radius:10px;margin-bottom:15px}
+body{
+    margin:0;
+    font-family:Arial,sans-serif;
+    background:#0f0f0f;
+    color:#fff;
+}
+.page{
+    display:none;
+    padding:20px;
+}
+.page.active{
+    display:block;
+}
+.notice{
+    background:#1c1c1c;
+    padding:12px;
+    border-radius:8px;
+    margin-bottom:15px;
+    color:#ffcc00;
+    font-size:14px;
+}
+h1,h2{
+    margin-top:5px;
+}
+button{
+    width:100%;
+    padding:12px;
+    font-size:16px;
+    border:none;
+    border-radius:8px;
+    background:#ff3c3c;
+    color:#fff;
+    margin-top:15px;
+}
+input,select{
+    width:100%;
+    padding:10px;
+    background:#1c1c1c;
+    border:1px solid #333;
+    color:#fff;
+    border-radius:6px;
+    margin-top:12px;
+}
+.nav{
+    position:fixed;
+    bottom:0;
+    width:100%;
+    background:#111;
+    display:flex;
+    justify-content:space-around;
+    padding:10px 0;
+    border-top:1px solid #333;
+}
+.nav-item{
+    color:#aaa;
+    font-size:14px;
+    cursor:pointer;
+}
+.nav-item.active{
+    color:#00ff99;
+}
 </style>
 </head>
 
 <body>
 
 <!-- HOME -->
-<div class="page active" id="home">
-<h2>📊 Dashboard</h2>
-<div class="notice">এটি আমাদের অফিসের ইনকাম সাইট। এখান থেকে উরাধুরা ইনকাম করার চেষ্টা করুন।</div>
-<p>👤 <b id="uName"></b></p>
-<p>🆔 <b id="uId"></b></p>
-<h1>Balance: ৳<span id="balance">0</span></h1>
-<button onclick="go('earn')">Start Earning</button>
-<button onclick="go('withdraw')" style="background:#00cc66">Withdraw</button>
+<div class="page active" id="home-page">
+    <div class="notice">
+        এটি আমাদের অফিসের ইনকাম সাইট। এখান থেকে উরাধুরা ইনকাম করার চেষ্টা করুন।
+    </div>
+
+    <h2>আপনার ব্যালেন্স</h2>
+    <h1><span id="balance">0.00</span> টাকা</h1>
+
+    <button id="start-earning">ইনকাম শুরু করুন</button>
+    <button id="withdraw-btn" style="background:#00cc66;">Withdraw</button>
 </div>
 
 <!-- EARN -->
-<div class="page" id="earn">
-<h2>🎯 Tasks</h2>
+<div class="page" id="earn-page">
+    <h2>Ad দেখে ইনকাম করুন</h2>
+    <p>আজকের লিমিট: <b id="daily-limit">30</b></p>
+    <p>দেখা হয়েছে: <b id="today-ads">0</b></p>
 
-<div class="card">
-<button onclick="joinChannel(0)">Join Channel 1 (+5৳)</button>
-<button onclick="joinChannel(1)">Join Channel 2 (+5৳)</button>
-<button onclick="joinChannel(2)">Join Channel 3 (+5৳)</button>
-</div>
-
-<div class="card">
-<button onclick="viewTask()">View Task (+1৳ first time)</button>
-<button onclick="watchAd()">Watch Ad (+10৳)</button>
-<p>Ads Watched: <b><span id="ads">0</span>/30</b></p>
-</div>
-
-<div class="card">
-<button onclick="loadTaskHistory()">Task History</button>
-<div id="taskHistory"></div>
-</div>
+    <button id="watch-ad">Ad দেখুন (+10 টাকা)</button>
 </div>
 
 <!-- WITHDRAW -->
-<div class="page" id="withdraw">
-<h2>Withdraw</h2>
-<form onsubmit="event.preventDefault();withdraw();">
-<select id="method">
-<option>Bkash</option>
-<option>Nagad</option>
-<option>Rocket</option>
-</select>
-<input id="number" placeholder="Number">
-<input id="amount" type="number" placeholder="Amount (120-500)">
-<button type="submit" style="background:#00cc66">Submit</button>
-</form>
-<div id="withdrawHistory"></div>
+<div class="page" id="withdraw-page">
+    <h2>Withdraw</h2>
+
+    <form id="withdraw-form">
+        <select id="withdraw-method">
+            <option>Bkash</option>
+            <option>Nagad</option>
+            <option>Rocket</option>
+        </select>
+
+        <input type="number" placeholder="Number" required>
+        <input type="number" id="withdraw-amount" placeholder="Minimum 500" required>
+
+        <button type="submit" style="background:#00cc66;">Submit</button>
+    </form>
 </div>
 
 <!-- PROFILE -->
-<div class="page" id="profile">
-<h2>Profile</h2>
-<p>Name: <b id="pName"></b></p>
-<p>Username: <b id="pUser"></b></p>
-<p>ID: <b id="pId"></b></p>
-<p>Balance: ৳<b id="pBalance"></b></p>
+<div class="page" id="profile-page">
+    <h2>Profile</h2>
+    <p>Name: <b id="profile-name"></b></p>
+    <p>Balance: <b><span id="profile-balance">0.00</span> টাকা</b></p>
+    <p>Ads Watched: <b id="profile-ads-watched">0</b></p>
 </div>
 
 <!-- NAV -->
 <div class="nav">
-<div class="nav-item active" onclick="go('home')">Home</div>
-<div class="nav-item" onclick="go('earn')">Earn</div>
-<div class="nav-item" onclick="go('withdraw')">Withdraw</div>
-<div class="nav-item" onclick="go('profile')">Profile</div>
+    <div class="nav-item active" data-page="home-page">Home</div>
+    <div class="nav-item" data-page="earn-page">Earn</div>
+    <div class="nav-item" data-page="withdraw-page">Withdraw</div>
+    <div class="nav-item" data-page="profile-page">Profile</div>
 </div>
 
 <script>
-const tg=window.Telegram.WebApp;tg.expand();
-const BOT_TOKEN="8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
-const ADMIN_ID="8188773875";
+const tg = window.Telegram?.WebApp;
 
-const JOIN_REWARD=5, VIEW_REWARD=1, AD_REWARD=10;
-const MAX_AD=30, MAX_WD=500;
+/* CONFIG */
+const AD_REWARD = 10;
+const DAILY_LIMIT = 30;
+const MIN_WITHDRAW = 500;
 
-const JOIN_LINKS=[
-"https://t.me/DevleparX_Namid",
-"https://t.me/GmailMarketingB",
-"https://t.me/BDIncomep"
-];
-const VIEW_LINK="https://t.me/GmailMarketing_99bot";
+/* STORAGE */
+function load(k,d){return localStorage.getItem(k)?JSON.parse(localStorage.getItem(k)):d;}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
 
-let u=tg.initDataUnsafe.user||{};
-let UID=u.id||Date.now();
-let balance=+localStorage.getItem("b"+UID)||0;
-let adData=JSON.parse(localStorage.getItem("ad"+UID)||'{"d":"","c":0}');
-let tasks=JSON.parse(localStorage.getItem("t"+UID)||"[]");
+/* DATA */
+let balance = load("balance",0);
+let adsWatched = load("adsWatched",0);
 
-function today(){let d=new Date();return d.toDateString();}
-if(adData.d!==today()){adData={d:today(),c:0};}
-
-function save(){
-localStorage.setItem("b"+UID,balance);
-localStorage.setItem("ad"+UID,JSON.stringify(adData));
-localStorage.setItem("t"+UID,JSON.stringify(tasks));
-ui();
+/* UI */
+function updateUI(){
+    document.getElementById("balance").innerText = balance.toFixed(2);
+    document.getElementById("profile-balance").innerText = balance.toFixed(2);
+    document.getElementById("today-ads").innerText = adsWatched;
+    document.getElementById("profile-ads-watched").innerText = adsWatched;
+    document.getElementById("profile-name").innerText =
+        tg?.initDataUnsafe?.user?.first_name || "User";
 }
+updateUI();
 
-function ui(){
-uName.textContent=u.first_name||"User";
-uId.textContent=UID;
-balanceSpan=balance.toFixed(2);
-balance.textContent=balanceSpan;
-ads.textContent=adData.c;
-pName.textContent=u.first_name||"User";
-pUser.textContent=u.username||"N/A";
-pId.textContent=UID;
-pBalance.textContent=balanceSpan;
-}
-
-function go(id){
-document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-document.getElementById(id).classList.add("active");
-document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
-}
-
-function joinChannel(i){
-let k="j"+UID+i;
-if(localStorage.getItem(k)) return alert("Already joined");
-window.open(JOIN_LINKS[i]);
-setTimeout(()=>{
-localStorage.setItem(k,1);
-balance+=JOIN_REWARD;
-tasks.push("Joined Channel +5");
-save();
-},4000);
-}
-
-function viewTask(){
-let k="v"+UID;
-if(!localStorage.getItem(k)){
-window.open(VIEW_LINK);
-localStorage.setItem(k,1);
-balance+=VIEW_REWARD;
-tasks.push("First View +1");
-save();
-}else watchAd();
-}
-
-function watchAd(){
-if(adData.c>=MAX_AD) return alert("30 ads done, wait 24h");
-show_10314131('pop').then(()=>{
-adData.c++;
-balance+=AD_REWARD;
-tasks.push("Ad +10");
-save();
+/* NAV */
+document.querySelectorAll(".nav-item").forEach(btn=>{
+    btn.onclick=()=>{
+        document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+        document.getElementById(btn.dataset.page).classList.add("active");
+    }
 });
-}
 
-async function withdraw(){
-let a=+amount.value;
-if(a<120||a>MAX_WD||a>balance) return alert("Invalid amount");
-balance-=a;save();
-let msg=`📢 New Withdraw\n👤 ${u.first_name}\n🆔 ${UID}\n💵 ${a}\n📱 ${number.value}\n💳 ${method.value}`;
-fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
-method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({chat_id:ADMIN_ID,text:msg})
-});
-alert("Request Sent");
-}
+/* SHORTCUTS */
+document.getElementById("start-earning").onclick=()=>{
+    document.querySelector('[data-page="earn-page"]').click();
+};
+document.getElementById("withdraw-btn").onclick=()=>{
+    document.querySelector('[data-page="withdraw-page"]').click();
+};
 
-function loadTaskHistory(){
-taskHistory.innerHTML=tasks.map(t=>`<p>• ${t}</p>`).join("");
-}
+/* WATCH AD */
+document.getElementById("watch-ad").onclick=()=>{
+    if(adsWatched>=DAILY_LIMIT){
+        tg?.showAlert("আজকের লিমিট শেষ");
+        return;
+    }
+    show_10314131("pop").then(()=>{
+        adsWatched++;
+        balance+=AD_REWARD;
+        save("adsWatched",adsWatched);
+        save("balance",balance);
+        updateUI();
+        tg?.showAlert("🎉 10 টাকা যোগ হয়েছে");
+    }).catch(()=>{
+        tg?.showAlert("Ad লোড হয়নি");
+    });
+};
 
-ui();
+/* WITHDRAW */
+document.getElementById("withdraw-form").onsubmit=e=>{
+    e.preventDefault();
+    let amount=Number(document.getElementById("withdraw-amount").value);
+    if(amount<MIN_WITHDRAW){
+        tg?.showAlert("Minimum withdraw 500 টাকা");
+        return;
+    }
+    if(amount>balance){
+        tg?.showAlert("ব্যালেন্স কম");
+        return;
+    }
+    balance-=amount;
+    save("balance",balance);
+    updateUI();
+    tg?.showAlert("Withdraw request সফল");
+    e.target.reset();
+};
 </script>
+
 </body>
 </html>
