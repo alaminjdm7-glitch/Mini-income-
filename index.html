@@ -1,315 +1,197 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quick Earn</title>
+<title>Earning App</title>
 
 <!-- AD NETWORK -->
 <script src="//libtl.com/sdk.js" data-zone="10314131" data-sdk="show_10314131"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <style>
-body {
-    background: #f2f2f7;
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    scroll-behavior: smooth;
-}
-.container {
-    max-width: 420px;
-    margin: auto;
-    padding: 20px;
-}
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin-bottom: 15px;
-}
-button {
-    width: 100%;
-    padding: 12px;
-    background: #4E73DF;
-    border: none;
-    color: white;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: bold;
-    margin-top:5px;
-}
-.nav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    display: flex;
-    justify-content: space-around;
-    padding: 12px 0;
-    border-top: 1px solid #ccc;
-}
-.nav div {
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-}
-input, select { width: 100%; padding: 10px; margin-top: 10px; font-size: 16px; border-radius: 6px; border:1px solid #ccc; }
-.withdraw-history, .task-history { max-height:200px; overflow-y:auto; margin-top:10px; }
-.notice { background:#FFFBCC; padding:10px; border-radius:6px; margin-bottom:10px; }
+body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff}
+.page{display:none;padding:20px}
+.page.active{display:block}
+.nav{position:fixed;bottom:0;width:100%;background:#111;display:flex;justify-content:space-around;padding:10px 0;border-top:1px solid #333}
+.nav-item{color:#aaa;font-size:14px;cursor:pointer}
+.nav-item.active{color:#00ff99}
+button{width:100%;padding:12px;font-size:16px;border:none;border-radius:8px;background:#ff3c3c;color:white;margin-top:12px}
+input,select{width:100%;padding:10px;background:#1c1c1c;border:1px solid #333;color:#fff;border-radius:6px;margin-top:10px}
+.notice{background:#1c1c1c;padding:10px;border-radius:6px;margin-bottom:10px;color:#00ff99}
+.card{background:#161616;padding:15px;border-radius:10px;margin-bottom:15px}
 </style>
+</head>
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<body>
+
+<!-- HOME -->
+<div class="page active" id="home">
+<h2>📊 Dashboard</h2>
+<div class="notice">এটি আমাদের অফিসের ইনকাম সাইট। এখান থেকে উরাধুরা ইনকাম করার চেষ্টা করুন।</div>
+<p>👤 <b id="uName"></b></p>
+<p>🆔 <b id="uId"></b></p>
+<h1>Balance: ৳<span id="balance">0</span></h1>
+<button onclick="go('earn')">Start Earning</button>
+<button onclick="go('withdraw')" style="background:#00cc66">Withdraw</button>
+</div>
+
+<!-- EARN -->
+<div class="page" id="earn">
+<h2>🎯 Tasks</h2>
+
+<div class="card">
+<button onclick="joinChannel(0)">Join Channel 1 (+5৳)</button>
+<button onclick="joinChannel(1)">Join Channel 2 (+5৳)</button>
+<button onclick="joinChannel(2)">Join Channel 3 (+5৳)</button>
+</div>
+
+<div class="card">
+<button onclick="viewTask()">View Task (+1৳ first time)</button>
+<button onclick="watchAd()">Watch Ad (+10৳)</button>
+<p>Ads Watched: <b><span id="ads">0</span>/30</b></p>
+</div>
+
+<div class="card">
+<button onclick="loadTaskHistory()">Task History</button>
+<div id="taskHistory"></div>
+</div>
+</div>
+
+<!-- WITHDRAW -->
+<div class="page" id="withdraw">
+<h2>Withdraw</h2>
+<form onsubmit="event.preventDefault();withdraw();">
+<select id="method">
+<option>Bkash</option>
+<option>Nagad</option>
+<option>Rocket</option>
+</select>
+<input id="number" placeholder="Number">
+<input id="amount" type="number" placeholder="Amount (120-500)">
+<button type="submit" style="background:#00cc66">Submit</button>
+</form>
+<div id="withdrawHistory"></div>
+</div>
+
+<!-- PROFILE -->
+<div class="page" id="profile">
+<h2>Profile</h2>
+<p>Name: <b id="pName"></b></p>
+<p>Username: <b id="pUser"></b></p>
+<p>ID: <b id="pId"></b></p>
+<p>Balance: ৳<b id="pBalance"></b></p>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+<div class="nav-item active" onclick="go('home')">Home</div>
+<div class="nav-item" onclick="go('earn')">Earn</div>
+<div class="nav-item" onclick="go('withdraw')">Withdraw</div>
+<div class="nav-item" onclick="go('profile')">Profile</div>
+</div>
+
 <script>
-const tg = window.Telegram.WebApp;
-tg.expand();
+const tg=window.Telegram.WebApp;tg.expand();
+const BOT_TOKEN="8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
+const ADMIN_ID="8188773875";
 
-const BOT_TOKEN = "8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw";
-const ADMIN_ID = "8188773875";
+const JOIN_REWARD=5, VIEW_REWARD=1, AD_REWARD=10;
+const MAX_AD=30, MAX_WD=500;
 
-// Telegram user info
-let user = tg?.initDataUnsafe?.user || {};
-let USER_NAME = user?.first_name || "Guest";
-let USER_USERNAME = user?.username || "NoUsername";
-let USER_ID = user?.id || Date.now();
-
-// Task & Ad Config
-const CHANNEL_JOIN_REWARD = 5;
-const CHANNEL_VIEW_REWARD = 1;
-const AD_REWARD = 10; // 10 টাকা
-const MAX_DAILY_ADS = 30;
-const MAX_WITHDRAW = 500; // Withdraw limit
-const CHANNEL_JOIN_LINKS = [
-  "https://t.me/DevleparX_Namid",
-  "https://t.me/GmailMarketingB",
-  "https://t.me/BDIncomep"
+const JOIN_LINKS=[
+"https://t.me/DevleparX_Namid",
+"https://t.me/GmailMarketingB",
+"https://t.me/BDIncomep"
 ];
-const CHANNEL_VIEW_LINK = "https://t.me/GmailMarketing_99bot";
+const VIEW_LINK="https://t.me/GmailMarketing_99bot";
 
-// User Data
-let balance = JSON.parse(localStorage.getItem("balance_" + USER_ID) || "0");
-let withdrawHistory = JSON.parse(localStorage.getItem("history_" + USER_ID) || "[]");
-let taskHistory = JSON.parse(localStorage.getItem("task_history_" + USER_ID) || "[]");
+let u=tg.initDataUnsafe.user||{};
+let UID=u.id||Date.now();
+let balance=+localStorage.getItem("b"+UID)||0;
+let adData=JSON.parse(localStorage.getItem("ad"+UID)||'{"d":"","c":0}');
+let tasks=JSON.parse(localStorage.getItem("t"+UID)||"[]");
 
-// UTIL
-function todayDate() { let d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
-function getData(key, def){ return JSON.parse(localStorage.getItem(key)) ?? def; }
-function setData(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function today(){let d=new Date();return d.toDateString();}
+if(adData.d!==today()){adData={d:today(),c:0};}
 
-// UI Update
-function updateUserUI(){
-    document.getElementById("nameBox").innerText = USER_NAME;
-    document.getElementById("idBox").innerText = USER_ID;
-    document.getElementById("balanceBox").innerText = balance.toFixed(2);
-    let adData = getAdInfo();
-    document.getElementById("adsWatched").innerText = adData.count + " / " + MAX_DAILY_ADS;
+function save(){
+localStorage.setItem("b"+UID,balance);
+localStorage.setItem("ad"+UID,JSON.stringify(adData));
+localStorage.setItem("t"+UID,JSON.stringify(tasks));
+ui();
 }
-updateUserUI();
 
-// AD TASK
-function getAdInfo(){
-    let data = getData("daily_ads_" + USER_ID, {date:todayDate(), count:0});
-    if(data.date !== todayDate()){ data.date = todayDate(); data.count = 0; }
-    return data;
+function ui(){
+uName.textContent=u.first_name||"User";
+uId.textContent=UID;
+balanceSpan=balance.toFixed(2);
+balance.textContent=balanceSpan;
+ads.textContent=adData.c;
+pName.textContent=u.first_name||"User";
+pUser.textContent=u.username||"N/A";
+pId.textContent=UID;
+pBalance.textContent=balanceSpan;
+}
+
+function go(id){
+document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+}
+
+function joinChannel(i){
+let k="j"+UID+i;
+if(localStorage.getItem(k)) return alert("Already joined");
+window.open(JOIN_LINKS[i]);
+setTimeout(()=>{
+localStorage.setItem(k,1);
+balance+=JOIN_REWARD;
+tasks.push("Joined Channel +5");
+save();
+},4000);
+}
+
+function viewTask(){
+let k="v"+UID;
+if(!localStorage.getItem(k)){
+window.open(VIEW_LINK);
+localStorage.setItem(k,1);
+balance+=VIEW_REWARD;
+tasks.push("First View +1");
+save();
+}else watchAd();
 }
 
 function watchAd(){
-    let adData = getAdInfo();
-    if(adData.count >= MAX_DAILY_ADS){
-        alert("❌ দুঃখিত!\nআপনি আজকে ৩০ টি অ্যাড দেখে ফেলেছেন।\n⏰ ২৪ ঘণ্টা পর আবার দেখতে পারবেন।");
-        return;
-    }
-    if(typeof show_10314131 !== "function"){ alert("⚠️ Ad লোড হয়নি, পরে চেষ্টা করুন"); return; }
-
-    show_10314131("pop").then(()=>{
-        adData.count++;
-        balance += AD_REWARD;
-        setData("daily_ads_" + USER_ID, adData);
-        localStorage.setItem("balance_" + USER_ID, balance);
-        updateUserUI();
-
-        taskHistory.push({type:"Ad Watch", reward:AD_REWARD, date:new Date().toLocaleString()});
-        localStorage.setItem("task_history_" + USER_ID, JSON.stringify(taskHistory));
-
-        alert("✅ অভিনন্দন!\nআপনি " + AD_REWARD + " টাকা পেয়েছেন");
-    });
+if(adData.c>=MAX_AD) return alert("30 ads done, wait 24h");
+show_10314131('pop').then(()=>{
+adData.c++;
+balance+=AD_REWARD;
+tasks.push("Ad +10");
+save();
+});
 }
 
-// CHANNEL JOIN TASK (ONE TIME PER CHANNEL)
-function joinChannel(index){
-    let joinedKey = "joined_channel_" + USER_ID + "_" + index;
-    if(getData(joinedKey,false)){
-        alert("✅ আপনি ইতিমধ্যে এই চ্যানেল জয়েন করেছেন");
-        return;
-    }
-    window.open(CHANNEL_JOIN_LINKS[index], "_blank");
-    setTimeout(()=>{
-        setData(joinedKey, true);
-        balance += CHANNEL_JOIN_REWARD;
-        localStorage.setItem("balance_" + USER_ID, balance);
-        updateUserUI();
-        taskHistory.push({type:"Channel Join", reward:CHANNEL_JOIN_REWARD, date:new Date().toLocaleString(), channel:CHANNEL_JOIN_LINKS[index]});
-        localStorage.setItem("task_history_" + USER_ID, JSON.stringify(taskHistory));
-        alert("🎉 চ্যানেল জয়েন সফল!\nআপনি " + CHANNEL_JOIN_REWARD + " টাকা পেয়েছেন");
-    }, 4000);
+async function withdraw(){
+let a=+amount.value;
+if(a<120||a>MAX_WD||a>balance) return alert("Invalid amount");
+balance-=a;save();
+let msg=`📢 New Withdraw\n👤 ${u.first_name}\n🆔 ${UID}\n💵 ${a}\n📱 ${number.value}\n💳 ${method.value}`;
+fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({chat_id:ADMIN_ID,text:msg})
+});
+alert("Request Sent");
 }
 
-// CHANNEL VIEW TASK (FIRST TIME ONLY)
-function viewChannel(){
-    let firstViewKey = "first_view_" + USER_ID;
-    if(!getData(firstViewKey,false)){
-        // First time view
-        window.open(CHANNEL_VIEW_LINK, "_blank");
-        setData(firstViewKey,true);
-        taskHistory.push({type:"Channel View", reward:CHANNEL_VIEW_REWARD, date:new Date().toLocaleString(), first:true});
-        localStorage.setItem("task_history_" + USER_ID, JSON.stringify(taskHistory));
-        balance += CHANNEL_VIEW_REWARD;
-        localStorage.setItem("balance_" + USER_ID, balance);
-        updateUserUI();
-        alert("👀 প্রথমবার ভিউ সফল!\nআপনি " + CHANNEL_VIEW_REWARD + " টাকা পেয়েছেন");
-    } else {
-        // Subsequent clicks only Ad
-        watchAd();
-    }
-}
-
-// WITHDRAW
-async function sendWithdraw(){
-    let amount = Number(document.getElementById("amount").value);
-    let number = document.getElementById("number").value;
-    let method = document.getElementById("method").value;
-
-    if(!amount || !number){ alert("সব ফিল্ড পূরণ করুন"); return; }
-    if(amount > balance){ alert("Insufficient balance!"); return; }
-    if(amount > MAX_WITHDRAW){ alert("⚠️ Maximum withdraw is " + MAX_WITHDRAW + " BDT"); return; }
-    if(amount < 120){ alert("Minimum withdraw 120 BDT!"); return; }
-
-    balance -= amount;
-    localStorage.setItem("balance_" + USER_ID, balance);
-
-    let now = new Date();
-    withdrawHistory.push({amount, number, method, date: now.toLocaleDateString(), time: now.toLocaleTimeString()});
-    localStorage.setItem("history_" + USER_ID, JSON.stringify(withdrawHistory));
-    updateUserUI();
-    loadHistory();
-
-    let msg = `📢 New Withdraw Request
-👤 Name: ${USER_NAME}
-🔗 Username: @${USER_USERNAME}
-🆔 User ID: ${USER_ID}
-💵 Amount: ৳${amount}
-📱 Number: ${number}
-💳 Method: ${method}`;
-
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({chat_id:ADMIN_ID, text:msg, parse_mode:"Markdown"})
-    });
-    alert("Withdraw Request Sent!");
-    document.getElementById("withdrawForm").reset();
-}
-
-// LOAD WITHDRAW HISTORY
-function loadHistory(){
-    const box = document.getElementById("historyList");
-    box.innerHTML = "";
-    if(withdrawHistory.length===0){ box.innerHTML="<p>No withdraw history yet.</p>"; return; }
-    withdrawHistory.slice().reverse().forEach(w=>{
-        box.innerHTML += `<div class='card'>
-            <b>Amount:</b> ৳${w.amount}<br>
-            <b>Number:</b> ${w.number}<br>
-            <b>Method:</b> ${w.method}<br>
-            <b>Date:</b> ${w.date} ${w.time}
-        </div>`;
-    });
-}
-
-// LOAD TASK HISTORY
 function loadTaskHistory(){
-    const box = document.getElementById("taskHistoryList");
-    box.innerHTML = "";
-    if(taskHistory.length===0){ box.innerHTML="<p>No task history yet.</p>"; return; }
-    taskHistory.slice().reverse().forEach(t=>{
-        box.innerHTML += `<div class='card'>
-            <b>Task:</b> ${t.type}<br>
-            <b>Reward:</b> ৳${t.reward}<br>
-            ${t.channel ? "<b>Channel:</b> " + t.channel + "<br>" : ""}
-            <b>Date:</b> ${t.date}
-        </div>`;
-    });
+taskHistory.innerHTML=tasks.map(t=>`<p>• ${t}</p>`).join("");
 }
 
-// NAVIGATION
-function scrollToSection(section){
-    let el = document.getElementById(section);
-    if(el) el.scrollIntoView({behavior:"smooth"});
-}
-</script>
-</head>
-<body>
-<div class="container">
-
-    <!-- DASHBOARD NOTICE -->
-    <div class="card" id="dashboard">
-        <h3>📊 Dashboard</h3>
-        <div class="notice">এটি আমাদের অফিসের ইনকাম সাইট। এখান থেকে উরাধুরা ইনকাম করার চেষ্টা করুন।</div>
-        <p>User: <b id="nameBox"></b> | ID: <b id="idBox"></b></p>
-        <p>Balance: <b id="balanceBox">0.00</b> BDT</p>
-    </div>
-
-    <!-- TASKS -->
-    <div class="card" id="tasks">
-        <h3>🎯 Tasks</h3>
-        <button onclick="joinChannel(0)">📢 Join Channel 1 (+5৳)</button>
-        <button onclick="joinChannel(1)">📢 Join Channel 2 (+5৳)</button>
-        <button onclick="joinChannel(2)">📢 Join Channel 3 (+5৳)</button>
-        <button onclick="viewChannel()">👀 View Channel (+1৳ first time)</button>
-        <button onclick="watchAd()">▶️ Watch Ad (+10৳)</button>
-        <p style="margin-top:10px">Ads Watched: <b id="adsWatched">0 / 30</b></p>
-        <button onclick="loadTaskHistory()">📜 Task History</button>
-        <div id="taskHistoryList" class="task-history"></div>
-    </div>
-
-    <!-- WITHDRAW -->
-    <div class="card" id="withdraw">
-        <h3>Withdraw</h3>
-        <form id="withdrawForm" onsubmit="event.preventDefault(); sendWithdraw();">
-            <input type="number" id="amount" placeholder="Amount">
-            <input type="text" id="number" placeholder="Bkash/Nagad Number">
-            <select id="method">
-                <option>Bkash</option>
-                <option>Nagad</option>
-                <option>Rocket</option>
-            </select>
-            <button type="submit">Withdraw</button>
-        </form>
-        <button onclick="loadHistory()">Load Withdraw History</button>
-        <div id="historyList" class="withdraw-history"></div>
-    </div>
-
-    <!-- PROFILE -->
-    <div class="card" id="profile">
-        <h3>👤 Profile</h3>
-        <p>Name: <b id="nameBoxProfile"></b></p>
-        <p>Username: <b id="usernameSpan"></b></p>
-        <p>User ID: <b id="idBoxProfile"></b></p>
-    </div>
-
-</div>
-
-<div class="nav">
-    <div onclick="scrollToSection('dashboard')">Home</div>
-    <div onclick="scrollToSection('tasks')">Tasks</div>
-    <div onclick="scrollToSection('withdraw')">Withdraw</div>
-    <div onclick="scrollToSection('profile')">Profile</div>
-</div>
-
-<script>
-document.getElementById("nameBoxProfile").innerText = USER_NAME;
-document.getElementById("usernameSpan").innerText = USER_USERNAME;
-document.getElementById("idBoxProfile").innerText = USER_ID;
+ui();
 </script>
 </body>
 </html>
