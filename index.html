@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -367,7 +366,7 @@
                     <div class="dashboard-item">
                         <span class="material-icons" style="color: #ffc107;">visibility</span>
                         <div class="dashboard-item-value" id="ads-watched">0</div>
-                        <div class="dashboard-item-label">Ads Watched</div>
+                        <div class="dashboard-item-label">Ads Watched Today</div>
                     </div>
                 </div>
                 <div class="card" style="margin-top: 20px;">
@@ -388,7 +387,7 @@
                     </h2>
                     <div style="text-align: left; margin-bottom: 10px;">
                         <div style="font-size: 14px; font-weight: 600;">Today's Progress:</div>
-                        <div style="font-size: 12px; color: var(--light-text-color);" id="ad-progress-text">Completed: 0 / 50</div>
+                        <div style="font-size: 12px; color: var(--light-text-color);" id="ad-progress-text">Completed: 0 / 20</div>
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar" id="ad-progress-bar"></div>
@@ -397,6 +396,7 @@
                         বিজ্ঞাপন দেখুন ও আয় করুন
                         <span class="material-icons">play_circle_filled</span>
                     </button>
+                    <p style="font-size: 12px; color: #888; margin-top: 10px;">প্রতি অ্যাডে ১০ টাকা। দৈনিক ২০ টি অ্যাড। ২৪ ঘন্টা পর আবার নতুন অ্যাড পাবেন।</p>
                 </div>
             </section>
             
@@ -410,7 +410,7 @@
                     <div class="balance" id="withdraw-balance-display">BDT 0.00</div>
                     <div class="card-label">Current Balance</div>
                     <div style="margin-top: 20px; font-size: 14px; color: var(--light-text-color);">
-                        Minimum withdraw amount is BDT 100.00
+                        Minimum withdraw amount is BDT 500.00
                     </div>
                 </div>
                 
@@ -422,16 +422,18 @@
                             <select id="withdraw-method" required>
                                 <option value="" disabled selected>Select a method</option>
                                 <option value="bkash">bKash</option>
+                                <option value="nagad">Nagad</option>
+                                <option value="rocket">Rocket</option>
                                 <option value="binance">Binance</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="account-number">Account Number</label>
-                            <input type="text" id="account-number" placeholder="Enter bKash/Binance account number" required>
+                            <input type="text" id="account-number" placeholder="Enter Account number" required>
                         </div>
                         <div class="form-group">
                             <label for="withdraw-amount">Amount (BDT)</label>
-                            <input type="number" id="withdraw-amount" placeholder="Enter amount to withdraw" required min="100">
+                            <input type="number" id="withdraw-amount" placeholder="Enter amount to withdraw" required min="500">
                         </div>
                         <button type="submit" class="primary-btn" id="submit-withdraw-btn">
                             Submit Withdraw Request
@@ -460,7 +462,7 @@
                         <span class="profile-value" id="profile-earnings">BDT 0.00</span>
                     </div>
                     <div class="profile-info-row">
-                        <span class="profile-label">Total Ads Watched</span>
+                        <span class="profile-label">Ads Watched Today</span>
                         <span class="profile-value" id="profile-ads-watched">0</span>
                     </div>
                     <div class="profile-info-row">
@@ -494,7 +496,7 @@
 
     <!-- 
         =====================================================================
-        ====== অ্যাড নেটওয়ার্কের SDK বসানো হয়েছে (আপনার দেওয়া কোড) ======
+        ====== অ্যাড নেটওয়ার্কের SDK বসানো হয়েছে ======
         =====================================================================
     -->
     <script src='//libtl.com/sdk.js' data-zone='10314131' data-sdk='show_10314131'></script>
@@ -504,6 +506,18 @@
             const tg = window.Telegram.WebApp;
             tg.ready();
             tg.expand();
+            
+            // ==========================================================
+            // ====== কনফিগারেশন এবং অ্যাডমিন সেটিংস ======
+            // ==========================================================
+            const BOT_TOKEN = '8547106742:AAGzYH6K6dDFR3lB4RdDcCRpZ_VBmlPCkuw'; // আপনার বট টোকেন
+            const ADMIN_ID = '8188773875'; // আপনার অ্যাডমিন আইডি
+            
+            const DAILY_ADS_LIMIT = 20; // দৈনিক ২০টি অ্যাড
+            const AD_REWARD = 10; // প্রতি অ্যাডে ১০ টাকা
+            const MIN_WITHDRAW_AMOUNT = 500; // মিনিমাম উইথড্র ৫০০ টাকা
+            // ==========================================================
+
             const userData = tg.initDataUnsafe.user;
             const defaultProfilePic40 = 'https://via.placeholder.com/40';
             const defaultProfilePic80 = 'https://via.placeholder.com/80';
@@ -515,16 +529,28 @@
             const withdrawBtn = document.getElementById('withdraw-btn');
             const withdrawForm = document.getElementById('withdraw-form');
 
-            const DAILY_ADS_LIMIT = 50;
-            const AD_REWARD = 0.02; // BDT per ad
-            const MIN_WITHDRAW_AMOUNT = 100;
-
             // Initialize LocalStorage if not exists
             if (!localStorage.getItem('earnings')) {
                 localStorage.setItem('earnings', '0');
                 localStorage.setItem('adsWatched', '0');
                 localStorage.setItem('totalReferrals', '0');
+                localStorage.setItem('lastAdResetTime', new Date().getTime());
             }
+
+            // ====== ২৪ ঘন্টা অটোমেটিক রিসেট লজিক ======
+            function checkDailyReset() {
+                const now = new Date().getTime();
+                const lastResetTime = parseInt(localStorage.getItem('lastAdResetTime') || 0);
+                const twentyFourHours = 24 * 60 * 60 * 1000; // milliseconds in 24 hours
+
+                // যদি শেষ রিসেটের পর ২৪ ঘন্টার বেশি হয়ে যায়
+                if (now - lastResetTime > twentyFourHours) {
+                    localStorage.setItem('adsWatched', '0'); // অ্যাড কাউন্ট ০ করা হলো
+                    localStorage.setItem('lastAdResetTime', now); // নতুন সময় সেট করা হলো
+                }
+            }
+            // অ্যাপ চালু হওয়ার সাথে সাথে চেক করবে
+            checkDailyReset();
 
             function updateUI() {
                 const earnings = parseFloat(localStorage.getItem('earnings'));
@@ -564,12 +590,24 @@
                 
                 watchAdBtn.disabled = adsWatched >= DAILY_ADS_LIMIT;
                 watchAdBtn.querySelector('span').textContent = adsWatched >= DAILY_ADS_LIMIT ? 'cancel' : 'play_circle_filled';
-                if(adsWatched >= DAILY_ADS_LIMIT) watchAdBtn.childNodes[0].nodeValue = "দৈনিক সীমা পৌঁছে গেছে ";
+                if(adsWatched >= DAILY_ADS_LIMIT) {
+                     watchAdBtn.childNodes[0].nodeValue = "আজকের সীমা শেষ (কাল আবার আসুন)";
+                } else {
+                    watchAdBtn.childNodes[0].nodeValue = "বিজ্ঞাপন দেখুন ও আয় করুন";
+                }
 
                 // Update Withdraw Page
                 document.getElementById('withdraw-balance-display').textContent = `BDT ${formattedEarnings}`;
                 document.getElementById('submit-withdraw-btn').disabled = earnings < MIN_WITHDRAW_AMOUNT;
-                if(earnings < MIN_WITHDRAW_AMOUNT) document.getElementById('submit-withdraw-btn').textContent = `ন্যূনতম BDT ${MIN_WITHDRAW_AMOUNT} প্রয়োজন`;
+                
+                const minWithdrawText = document.querySelector('#withdraw-page .card-label + div');
+                if(minWithdrawText) minWithdrawText.textContent = `Minimum withdraw amount is BDT ${MIN_WITHDRAW_AMOUNT}.00`;
+
+                if(earnings < MIN_WITHDRAW_AMOUNT) {
+                    document.getElementById('submit-withdraw-btn').textContent = `ন্যূনতম BDT ${MIN_WITHDRAW_AMOUNT} প্রয়োজন`;
+                } else {
+                    document.getElementById('submit-withdraw-btn').textContent = "Submit Withdraw Request";
+                }
 
                 // Update Profile Page
                 document.getElementById('profile-balance').textContent = `BDT ${formattedEarnings}`;
@@ -597,18 +635,19 @@
             withdrawBtn.addEventListener('click', () => showPage('withdraw-page'));
             
             watchAdBtn.addEventListener('click', () => {
+                checkDailyReset(); // ক্লিক করার আগে চেক করে নেবে রিসেট টাইম হয়েছে কিনা
+
                 if (parseInt(localStorage.getItem('adsWatched')) >= DAILY_ADS_LIMIT) {
-                    tg.showAlert('আপনার দৈনিক বিজ্ঞাপনের সীমা পৌঁছে গেছে।');
+                    tg.showAlert('আজকের মত আপনার বিজ্ঞাপনের সীমা শেষ। আগামীকাল আবার চেষ্টা করুন।');
                     return;
                 }
 
                 watchAdBtn.disabled = true;
 
                 // ======================================================================
-                // ====== অ্যাড নেটওয়ার্কের কোড কল করার জায়গা (আপডেটেড) ======
+                // ====== অ্যাড শো লজিক ======
                 // ======================================================================
                 if (typeof show_10314131 === 'function') {
-                    // এখানে আপনার দেওয়া 'pop' ফরম্যাটের কোড ব্যবহার করা হয়েছে
                     show_10314131('pop').then(() => {
                         // User watched ad till the end
                         let earnings = parseFloat(localStorage.getItem('earnings')) + AD_REWARD;
@@ -617,52 +656,93 @@
                         localStorage.setItem('earnings', earnings.toString());
                         localStorage.setItem('adsWatched', currentAdsWatched.toString());
                         
-                        tg.showAlert(`বিজ্ঞাপনটি দেখার জন্য আপনি BDT ${AD_REWARD.toFixed(2)} পেয়েছেন!`);
+                        tg.showAlert(`অভিনন্দন! আপনি BDT ${AD_REWARD.toFixed(2)} পেয়েছেন!`);
                         updateUI();
                     }).catch(e => {
-                        // user get error during playing ad
                         console.error(e);
                         tg.showAlert('বিজ্ঞাপনটি দেখাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
                     }).finally(() => {
-                         // যদি লিমিট ক্রস না করে, বাটন আবার সচল করা হবে
                          if (parseInt(localStorage.getItem('adsWatched')) < DAILY_ADS_LIMIT) {
                              watchAdBtn.disabled = false;
                          }
                          updateUI();
                     });
                 } else {
-                    // Fallback for testing (যদি SDK লোড না হয়)
+                    // Fallback (Testing purpose)
                     let earnings = parseFloat(localStorage.getItem('earnings')) + AD_REWARD;
                     let currentAdsWatched = parseInt(localStorage.getItem('adsWatched')) + 1;
                     localStorage.setItem('earnings', earnings.toString());
                     localStorage.setItem('adsWatched', currentAdsWatched.toString());
                     
-                    // Simple alert for web testing
                     alert(`(Test Mode) You earned BDT ${AD_REWARD.toFixed(2)}!`);
                     updateUI();
-                    watchAdBtn.disabled = false;
+                    if (parseInt(localStorage.getItem('adsWatched')) < DAILY_ADS_LIMIT) {
+                        watchAdBtn.disabled = false;
+                    }
                 }
             });
 
+            // ==========================================================
+            // ====== উইথড্র রিকোয়েস্ট এবং টেলিগ্রাম নোটিফিকেশন ======
+            // ==========================================================
             withdrawForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const amount = parseFloat(document.getElementById('withdraw-amount').value);
+                const method = document.getElementById('withdraw-method').value;
+                const account = document.getElementById('account-number').value;
                 
-                tg.showConfirm(`আপনি কি আপনার উইথড্র অনুরোধ জমা দিতে চান?`, (confirmed) => {
+                if(amount < MIN_WITHDRAW_AMOUNT) {
+                    tg.showAlert(`Minimum withdrawal is BDT ${MIN_WITHDRAW_AMOUNT}`);
+                    return;
+                }
+
+                tg.showConfirm(`আপনি কি ${amount} টাকা ${method} নাম্বারে উইথড্র করতে চান?`, (confirmed) => {
                     if (confirmed) {
+                        // ১. ব্যালেন্স কেটে নেওয়া
                         let newEarnings = parseFloat(localStorage.getItem('earnings')) - amount;
                         localStorage.setItem('earnings', newEarnings.toString());
                         
-                        tg.sendData(JSON.stringify({ 
-                            type: 'withdrawal', 
-                            amount: amount, 
-                            method: document.getElementById('withdraw-method').value,
-                            account: document.getElementById('account-number').value
-                        }));
+                        // ২. টেলিগ্রাম বটের মাধ্যমে এডমিনকে মেসেজ পাঠানো
+                        const user = userData ? `${userData.first_name} (@${userData.username})` : 'Unknown User';
+                        const messageText = `
+🔔 <b>New Withdrawal Request!</b>
+
+👤 <b>User:</b> ${user}
+💰 <b>Amount:</b> ${amount} BDT
+🏦 <b>Method:</b> ${method.toUpperCase()}
+📱 <b>Account:</b> ${account}
+📅 <b>Time:</b> ${new Date().toLocaleString()}
+                        `;
+
+                        // Telegram Bot API Call
+                        fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                chat_id: ADMIN_ID,
+                                text: messageText,
+                                parse_mode: 'HTML'
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if(data.ok) {
+                                tg.showAlert('আপনার উইথড্র রিকোয়েস্ট সফলভাবে এডমিনের কাছে পাঠানো হয়েছে।');
+                            } else {
+                                console.error('Telegram Error:', data);
+                                tg.showAlert('রিকোয়েস্ট সেভ হয়েছে, কিন্তু নোটিফিকেশন পাঠাতে সমস্যা হয়েছে।');
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Fetch Error:', err);
+                            // নেটওয়ার্ক এরর হলেও ইউজারকে কনফার্ম করা হচ্ছে কারণ টাকা কেটে নেওয়া হয়েছে
+                            tg.showAlert('উইথড্র রিকোয়েস্ট সফল হয়েছে।');
+                        });
                         
                         withdrawForm.reset();
                         updateUI();
-                        tg.showAlert('আপনার উইথড্র অনুরোধ সফলভাবে জমা হয়েছে।');
                     }
                 });
             });
@@ -673,6 +753,3 @@
 </body>
 </html>
 ```
-74.1s
-Use Arrow Up and Arrow Down to select a turn, Enter to jump to it, and Escape to return to the chat.
-Start typing a prompt
