@@ -1,235 +1,138 @@
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telegram Bot Code</title>
-<style>
-    body {
-        background: #1e1e1e;
-        color: #d4d4d4;
-        font-family: 'Courier New', monospace;
-        padding: 20px;
+<?php
+/*
+Telegram Bot for Gmail Apply System (DB Free)
+Author: Alamin
+*/
+
+// --- CONFIGURATION ---
+$botToken = "YOUR_BOT_TOKEN";      // Bot Token
+$adminId  = "YOUR_TELEGRAM_ID";    // Admin Telegram ID
+$apiUrl   = "https://api.telegram.org/bot$botToken/";
+
+// --- HELPER FUNCTION ---
+function sendMessage($chatId, $text, $replyMarkup = null){
+    global $apiUrl;
+    $data = [
+        'chat_id' => $chatId,
+        'text' => $text,
+        'parse_mode' => 'HTML'
+    ];
+    if($replyMarkup){
+        $data['reply_markup'] = json_encode($replyMarkup);
     }
-    pre {
-        background: #2d2d2d;
-        padding: 15px;
-        border-radius: 8px;
-        overflow-x: auto;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-    }
-    .comment { color: #6a9955; font-style: italic; }
-    .keyword { color: #569cd6; font-weight: bold; }
-    .string { color: #ce9178; }
-</style>
-</head>
-<body>
+    file_get_contents($apiUrl . "sendMessage?" . http_build_query($data));
+}
 
-<h2>Python Telegram Bot Code</h2>
+// --- GET UPDATE ---
+$update = json_decode(file_get_contents("php://input"), TRUE);
+$message = $update['message'] ?? null;
+$callback_query = $update['callback_query'] ?? null;
 
-<pre>
-<span class="comment">import telebot</span>
-<span class="comment">from telebot import types</span>
-<span class="comment">import sqlite3</span>
-<span class="comment">import time</span>
-<span class="comment">import threading</span>
-
-<span class="comment"># ----------- কনফিগারেশন -----------</span>
-BOT_TOKEN = <span class="string">'8439942678:AAEUHHv3iH0BCiX0qoPr-xU11mNtx0fKwtc'</span>  <span class="comment"># তোমার Bot Token</span>
-ADMIN_ID = 6584555182                                         <span class="comment"># তোমার Admin ID</span>
-USER_LIMIT = 500                                               <span class="comment"># সর্বোচ্চ মেম্বার লিমিট</span>
-
-bot = telebot.TeleBot(BOT_TOKEN)
-
-<span class="comment"># ----------- ডাটাবেস সেটআপ -----------</span>
-def init_db():
-    conn = sqlite3.connect('bot_database.db', check_same_thread=False)
-    cursor = conn.cursor()
-    <span class="comment"># ইউজার টেবিল</span>
-    cursor.execute(<span class="string">'''CREATE TABLE IF NOT EXISTS users (
-                        user_id INTEGER PRIMARY KEY,
-                        balance INTEGER DEFAULT 0
-                    )'''</span>)
-    <span class="comment"># উইথড্র টেবিল</span>
-    cursor.execute(<span class="string">'''CREATE TABLE IF NOT EXISTS withdrawals (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id INTEGER,
-                        amount INTEGER,
-                        number TEXT,
-                        method TEXT
-                    )'''</span>)
-    conn.commit()
-    conn.close()
-
-init_db()
-
-<span class="comment"># ডাটাবেস হেল্পার ফাংশন</span>
-def get_db_connection():
-    return sqlite3.connect('bot_database.db', check_same_thread=False)
-
-def get_total_users():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(<span class="string">"SELECT COUNT(*) FROM users"</span>)
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
-
-def is_user_exists(user_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(<span class="string">"SELECT user_id FROM users WHERE user_id = ?"</span>, (user_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result is not None
-
-def add_user(user_id):
-    if get_total_users() &gt;= USER_LIMIT:
-        return False <span class="comment"># লিমিট শেষ</span>
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(<span class="string">"INSERT INTO users (user_id, balance) VALUES (?, ?)"</span>, (user_id, 0))
-    conn.commit()
-    conn.close()
-    return True
-
-def get_balance(user_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(<span class="string">"SELECT balance FROM users WHERE user_id = ?"</span>, (user_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else 0
-
-def update_balance(user_id, amount):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(<span class="string">"UPDATE users SET balance = balance + ? WHERE user_id = ?"</span>, (amount, user_id))
-    conn.commit()
-    conn.close()
-
-<span class="comment"># ----------- মেইন মেনু কীবোর্ড -----------</span>
-def main_menu():
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    btn1 = types.KeyboardButton("🏠 Home")
-    btn2 = types.KeyboardButton("📋 Task")
-    btn3 = types.KeyboardButton("💰 Withdraw")
-    btn4 = types.KeyboardButton("📞 Support")
-    markup.add(btn1, btn2, btn3, btn4)
-    return markup
-
-<span class="comment"># ----------- কমান্ড হ্যান্ডলার -----------</span>
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    user_id = message.chat.id
+// --- HANDLE CALLBACK BUTTON ---
+if($callback_query){
+    $chatId = $callback_query['from']['id'];
+    $data = $callback_query['data'];
+    $messageId = $callback_query['message']['message_id'];
+    $userId = $callback_query['from']['id'];
     
-    if not is_user_exists(user_id):
-        if add_user(user_id):
-            bot.send_message(user_id, "স্বাগতম! আমাদের বটে জয়েন করার জন্য ধন্যবাদ।", reply_markup=main_menu())
-        else:
-            bot.send_message(user_id, "দুঃখিত! এই বটের ৫০০ জন মেম্বার পূর্ণ হয়ে গেছে। আপনি জয়েন করতে পারবেন না।")
-    else:
-        bot.send_message(user_id, "আপনি ইতিমধ্যে জয়েন আছেন!", reply_markup=main_menu())
+    // Split data for action
+    $parts = explode("|", $data);
+    $action = $parts[0];  // accept, reject, sendgmail
+    $targetUser = $parts[1] ?? null;
 
-<span class="comment"># ----------- বাটন হ্যান্ডলার -----------</span>
-@bot.message_handler(func=lambda message: True)
-def handle_buttons(message):
-    user_id = message.chat.id
-    text = message.text
+    if($action == "sendgmail" && $targetUser){
+        sendMessage($chatId, "📧 User $targetUser এর জন্য Gmail লিখুন (Email এবং Password):");
+        file_put_contents("apply_step_$targetUser.txt", "await_gmail");
+    }
+    if($action == "accept" && $targetUser){
+        sendMessage($targetUser, "✅ আপনার Gmail কাজ Accept হয়েছে। ধন্যবাদ।");
+        sendMessage($chatId, "User $targetUser Accept করা হলো।");
+        @unlink("apply_step_$targetUser.txt");
+    }
+    if($action == "reject" && $targetUser){
+        sendMessage($targetUser, "❌ আপনার Gmail কাজ বাতিল হয়েছে। আবার Submit করুন।");
+        sendMessage($chatId, "User $targetUser Reject করা হলো।");
+        @unlink("apply_step_$targetUser.txt");
+    }
+    exit;
+}
 
-    if text == "🏠 Home":
-        bal = get_balance(user_id)
-        msg = f"👤 &lt;b&gt;User Profile&lt;/b&gt;\n\n🆔 ID: `{user_id}`\n💰 Balance: &lt;b&gt;{bal} Points&lt;/b&gt;\n\nকাজ করতে Task বাটনে ক্লিক করুন।"
-        bot.send_message(user_id, msg, parse_mode='HTML')
+// --- HANDLE USER MESSAGE ---
+if($message){
+    $chatId = $message['chat']['id'];
+    $text = $message['text'];
+    
+    // Step storage (Memory via temp file)
+    $stepFile = "apply_step_$chatId.txt";
+    $step = file_exists($stepFile) ? file_get_contents($stepFile) : null;
 
-    elif text == "📋 Task":
-        bot.send_message(user_id, "⏳ অ্যাড লোড হচ্ছে... দয়া করে ৫ সেকেন্ড অপেক্ষা করুন।")
-        time.sleep(2)
-        reward = 10
-        update_balance(user_id, reward)
-        bot.send_message(user_id, f"✅ টাস্ক সম্পন্ন হয়েছে! আপনি {reward} পয়েন্ট পেয়েছেন।")
+    // --- START ---
+    if($text == "/start"){
+        sendMessage($chatId, "👋 স্বাগতম! Gmail কাজের জন্য Apply করতে নিচের বাটন চাপুন।", [
+            'inline_keyboard' => [
+                [['text'=>"📧 Gmail Apply", 'callback_data'=>"apply|$chatId"]]
+            ]
+        ]);
+        exit;
+    }
 
-    elif text == "💰 Withdraw":
-        bal = get_balance(user_id)
-        if bal &lt; 100:
-            bot.send_message(user_id, f"❌ আপনার ব্যালেন্স কম। মিনিমাম উইথড্র ১০০ পয়েন্ট।\nআপনার আছে: {bal} পয়েন্ট")
-        else:
-            msg = bot.send_message(user_id, "পেমেন্ট মেথড লিখুন (Bkash/Nagad):")
-            bot.register_next_step_handler(msg, process_payment_method)
+    // --- APPLY FLOW ---
+    if($step == "await_name"){
+        file_put_contents($stepFile, "await_phone|$text"); // save name
+        sendMessage($chatId, "আপনার মোবাইল নাম্বার লিখুন:");
+        exit;
+    }
+    if(strpos($step, "await_phone") === 0){
+        $name = explode("|", $step)[1];
+        file_put_contents($stepFile, "await_job|$name|$text"); // save name + phone
+        sendMessage($chatId, "কোন কাজ করতে চান লিখুন (উদা: Gmail):");
+        exit;
+    }
+    if(strpos($step, "await_job") === 0){
+        $parts = explode("|", $step);
+        $name = $parts[1];
+        $phone = $parts[2];
+        $job = $text;
 
-    elif text == "📞 Support":
-        bot.send_message(user_id, "যে কোনো সমস্যায় এডমিনের সাথে যোগাযোগ করুন: @YourAdminUserName")
+        // Notify Admin
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text'=>"📧 Gmail দিন", 'callback_data'=>"sendgmail|$chatId"],
+                    ['text'=>"❌ Reject", 'callback_data'=>"reject|$chatId"]
+                ]
+            ]
+        ];
+        sendMessage($GLOBALS['adminId'], "🆕 নতুন Gmail কাজের আবেদন\n\n👤 নাম: $name\n📱 মোবাইল: $phone\n🛠 কাজ: $job\n🆔 User ID: $chatId", $keyboard);
 
-<span class="comment"># ----------- উইথড্র প্রসেস -----------</span>
-def process_payment_method(message):
-    user_id = message.chat.id
-    method = message.text
-    msg = bot.send_message(user_id, "আপনার নাম্বারটি লিখুন:")
-    bot.register_next_step_handler(msg, process_number, method)
+        sendMessage($chatId, "✅ আপনার আবেদন পাঠানো হয়েছে। Admin Review করছে।");
+        @unlink($stepFile);
+        exit;
+    }
 
-def process_number(message, method):
-    user_id = message.chat.id
-    number = message.text
-    msg = bot.send_message(user_id, "কত পয়েন্ট উইথড্র করতে চান? (সংখ্যায় লিখুন)")
-    bot.register_next_step_handler(msg, process_amount, method, number)
+    // --- AWAIT GMAIL SUBMIT ---
+    if($step == "await_gmail"){
+        sendMessage($adminId, "📤 User $chatId Gmail পাঠিয়েছে:\n$text\n\n⬇️ সিদ্ধান্ত নিন:", [
+            'inline_keyboard' => [
+                [
+                    ['text'=>"✅ Accept", 'callback_data'=>"accept|$chatId"],
+                    ['text'=>"❌ Reject", 'callback_data'=>"reject|$chatId"]
+                ]
+            ]
+        ]);
+        sendMessage($chatId, "📤 Gmail Submit করা হয়েছে, Admin যাচাই করছে।");
+        @unlink($stepFile);
+        exit;
+    }
+}
 
-def process_amount(message, method, number):
-    user_id = message.chat.id
-    try:
-        amount = int(message.text)
-        current_bal = get_balance(user_id)
-        
-        if amount &gt; current_bal:
-            bot.send_message(user_id, "❌ অপর্যাপ্ত ব্যালেন্স!")
-        elif amount &lt; 100:
-            bot.send_message(user_id, "❌ মিনিমাম ১০০ পয়েন্ট হতে হবে।")
-        else:
-            update_balance(user_id, -amount)
-            
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(<span class="string">"INSERT INTO withdrawals (user_id, amount, number, method) VALUES (?, ?, ?, ?)"</span>, 
-                           (user_id, amount, number, method))
-            conn.commit()
-            conn.close()
-            
-            bot.send_message(user_id, "✅ আপনার উইথড্র রিকোয়েস্ট সফল হয়েছে! এডমিন শীঘ্রই চেক করবেন।")
-            
-            bot.send_message(ADMIN_ID, f"🔔 &lt;b&gt;New Withdraw Request!&lt;/b&gt;\nUser: {user_id}\nAmount: {amount}\nMethod: {method}\nNumber: {number}", parse_mode='HTML')
-            
-    except ValueError:
-        bot.send_message(user_id, "❌ দয়া করে সঠিক সংখ্যা লিখুন।")
-
-<span class="comment"># ----------- অটো অ্যাড সিস্টেম -----------</span>
-def auto_ad_sender():
-    while True:
-        time.sleep(3600)
-        ad_message = "📢 &lt;b&gt;SPONSORED AD&lt;/b&gt;\n\nআমাদের নতুন অফারটি দেখুন! জয়েন করুন আমাদের চ্যানেলে: @YourChannelLink"
-        
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT user_id FROM users")
-        users = cursor.fetchall()
-        conn.close()
-        
-        print(f"Sending Auto Ad to {len(users)} users...")
-        
-        for user in users:
-            try:
-                bot.send_message(user[0], ad_message, parse_mode='HTML')
-                time.sleep(0.5)
-            except Exception as e:
-                print(f"Failed to send to {user[0]}: {e}")
-
-ad_thread = threading.Thread(target=auto_ad_sender)
-ad_thread.daemon = True
-ad_thread.start()
-
-<span class="comment"># ----------- বট চালু -----------</span>
-print("Bot is running...")
-bot.infinity_polling()
-</pre>
-
-</body>
-</html>
+// --- HANDLE INLINE APPLY BUTTON ---
+if(isset($update['callback_query'])){
+    $data = $update['callback_query']['data'];
+    if(strpos($data, "apply") === 0){
+        $userId = explode("|",$data)[1];
+        file_put_contents("apply_step_$userId.txt", "await_name");
+        sendMessage($userId, "আপনার নাম লিখুন:");
+    }
+}
+?>
