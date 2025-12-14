@@ -5,8 +5,8 @@ Author: Alamin
 */
 
 // --- CONFIGURATION ---
-$botToken = "YOUR_BOT_TOKEN";      // Bot Token
-$adminId  = "YOUR_TELEGRAM_ID";    // Admin Telegram ID
+$botToken = "8439942678:AAEUHHv3iH0BCiX0qoPr-xU11mNtx0fKwtc"; // তোমার Bot Token
+$adminId  = "6584555182";    // তোমার Telegram ID (Admin)
 $apiUrl   = "https://api.telegram.org/bot$botToken/";
 
 // --- HELPER FUNCTION ---
