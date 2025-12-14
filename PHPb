@@ -1,1 +1,139 @@
 
+<?php
+/*
+Telegram Bot for Gmail Apply System (DB Free)
+Author: Alamin
+*/
+
+// --- CONFIGURATION ---
+$botToken = "8439942678:AAEUHHv3iH0BCiX0qoPr-xU11mNtx0fKwtc"; // তোমার Bot Token
+$adminId  = "6584555182";    // তোমার Telegram ID (Admin)
+$apiUrl   = "https://api.telegram.org/bot$botToken/";
+
+// --- HELPER FUNCTION ---
+function sendMessage($chatId, $text, $replyMarkup = null){
+    global $apiUrl;
+    $data = [
+        'chat_id' => $chatId,
+        'text' => $text,
+        'parse_mode' => 'HTML'
+    ];
+    if($replyMarkup){
+        $data['reply_markup'] = json_encode($replyMarkup);
+    }
+    file_get_contents($apiUrl . "sendMessage?" . http_build_query($data));
+}
+
+// --- GET UPDATE ---
+$update = json_decode(file_get_contents("php://input"), TRUE);
+$message = $update['message'] ?? null;
+$callback_query = $update['callback_query'] ?? null;
+
+// --- HANDLE CALLBACK BUTTON ---
+if($callback_query){
+    $chatId = $callback_query['from']['id'];
+    $data = $callback_query['data'];
+    $messageId = $callback_query['message']['message_id'];
+    $userId = $callback_query['from']['id'];
+    
+    // Split data for action
+    $parts = explode("|", $data);
+    $action = $parts[0];  // accept, reject, sendgmail
+    $targetUser = $parts[1] ?? null;
+
+    if($action == "sendgmail" && $targetUser){
+        sendMessage($chatId, "📧 User $targetUser এর জন্য Gmail লিখুন (Email এবং Password):");
+        file_put_contents("apply_step_$targetUser.txt", "await_gmail");
+    }
+    if($action == "accept" && $targetUser){
+        sendMessage($targetUser, "✅ আপনার Gmail কাজ Accept হয়েছে। ধন্যবাদ।");
+        sendMessage($chatId, "User $targetUser Accept করা হলো।");
+        @unlink("apply_step_$targetUser.txt");
+    }
+    if($action == "reject" && $targetUser){
+        sendMessage($targetUser, "❌ আপনার Gmail কাজ বাতিল হয়েছে। আবার Submit করুন।");
+        sendMessage($chatId, "User $targetUser Reject করা হলো।");
+        @unlink("apply_step_$targetUser.txt");
+    }
+    exit;
+}
+
+// --- HANDLE USER MESSAGE ---
+if($message){
+    $chatId = $message['chat']['id'];
+    $text = $message['text'];
+    
+    // Step storage (Memory via temp file)
+    $stepFile = "apply_step_$chatId.txt";
+    $step = file_exists($stepFile) ? file_get_contents($stepFile) : null;
+
+    // --- START ---
+    if($text == "/start"){
+        sendMessage($chatId, "👋 স্বাগতম! Gmail কাজের জন্য Apply করতে নিচের বাটন চাপুন।", [
+            'inline_keyboard' => [
+                [['text'=>"📧 Gmail Apply", 'callback_data'=>"apply|$chatId"]]
+            ]
+        ]);
+        exit;
+    }
+
+    // --- APPLY FLOW ---
+    if($step == "await_name"){
+        file_put_contents($stepFile, "await_phone|$text"); // save name
+        sendMessage($chatId, "আপনার মোবাইল নাম্বার লিখুন:");
+        exit;
+    }
+    if(strpos($step, "await_phone") === 0){
+        $name = explode("|", $step)[1];
+        file_put_contents($stepFile, "await_job|$name|$text"); // save name + phone
+        sendMessage($chatId, "কোন কাজ করতে চান লিখুন (উদা: Gmail):");
+        exit;
+    }
+    if(strpos($step, "await_job") === 0){
+        $parts = explode("|", $step);
+        $name = $parts[1];
+        $phone = $parts[2];
+        $job = $text;
+
+        // Notify Admin
+        $keyboard = [
+            'inline_keyboard' => [
+                [
+                    ['text'=>"📧 Gmail দিন", 'callback_data'=>"sendgmail|$chatId"],
+                    ['text'=>"❌ Reject", 'callback_data'=>"reject|$chatId"]
+                ]
+            ]
+        ];
+        sendMessage($GLOBALS['adminId'], "🆕 নতুন Gmail কাজের আবেদন\n\n👤 নাম: $name\n📱 মোবাইল: $phone\n🛠 কাজ: $job\n🆔 User ID: $chatId", $keyboard);
+
+        sendMessage($chatId, "✅ আপনার আবেদন পাঠানো হয়েছে। Admin Review করছে।");
+        @unlink($stepFile);
+        exit;
+    }
+
+    // --- AWAIT GMAIL SUBMIT ---
+    if($step == "await_gmail"){
+        sendMessage($adminId, "📤 User $chatId Gmail পাঠিয়েছে:\n$text\n\n⬇️ সিদ্ধান্ত নিন:", [
+            'inline_keyboard' => [
+                [
+                    ['text'=>"✅ Accept", 'callback_data'=>"accept|$chatId"],
+                    ['text'=>"❌ Reject", 'callback_data'=>"reject|$chatId"]
+                ]
+            ]
+        ]);
+        sendMessage($chatId, "📤 Gmail Submit করা হয়েছে, Admin যাচাই করছে।");
+        @unlink($stepFile);
+        exit;
+    }
+}
+
+// --- HANDLE INLINE APPLY BUTTON ---
+if(isset($update['callback_query'])){
+    $data = $update['callback_query']['data'];
+    if(strpos($data, "apply") === 0){
+        $userId = explode("|",$data)[1];
+        file_put_contents("apply_step_$userId.txt", "await_name");
+        sendMessage($userId, "আপনার নাম লিখুন:");
+    }
+}
+?>
